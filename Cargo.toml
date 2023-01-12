@@ -1,0 +1,31 @@
+[package]
+name = "avro-bench"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+avro-rs = "0.13.0"
+clap = "4.0.32"
+kafka = "0.9.0"
+rdkafka = "0.29.0"
+
+[[bin]]
+name = "produce"
+path = "src/produce.rs"
+
+[[bin]]
+name = "consume"
+path = "src/consume.rs"
+
+[[bin]]
+name = "avro_serdes"
+path = "src/avro_serdes.rs"
+
+[dev-dependencies]
+criterion = { version = "~0.3", features = ["html_reports"] }
+
+[[bench]]
+name = "avro_serialisation"
+harness = false
