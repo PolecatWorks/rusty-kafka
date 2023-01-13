@@ -45,6 +45,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Encoded = {}", encoded.len());
 
+
+    // ToDo: Update this to use Confluent compatible Avro : https://docs.confluent.io/3.2.0/schema-registry/docs/serializer-formatter.html#wire-format
+
     producer.send(&Record {
         topic: "test.topic",
         partition: -1,
@@ -52,24 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         value: encoded,
     })?;
 
-    // let reader = Reader::with_schema(&schema, &encoded[..]).unwrap();
 
-    // for value in reader {
-    //     println!("{:?}", value.unwrap());
-    // }
-
-    // Read input from the command line and write each line as a message to Kafka.
-    // let stdin = io::stdin();
-
-    // for line in stdin.lock().lines() {
-    //     let line = line?;
-    //     let value = json::parse(&line)?;
-    //     let mut encoder = writer.encoder();
-    //     let message = encoder.encode(from_value(value)?)?;
-
-    //     let record = Record::from_value("my-topic", message);
-    //     producer.send(&record)?;
-    // }
     println!("Finished");
     Ok(())
 }

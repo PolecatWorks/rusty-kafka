@@ -1,4 +1,13 @@
+# Objective
+
+Try out kafka for sending/receiving avro messages
+
+
+
 # Start Kafka
+
+
+
 
 
 Start zookeeper

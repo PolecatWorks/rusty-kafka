@@ -7,9 +7,15 @@ edition = "2021"
 
 [dependencies]
 avro-rs = "0.13.0"
-clap = "4.0.32"
+clap = { version = "4.0.32", features = ["derive"] }
 kafka = "0.9.0"
 rdkafka = "0.29.0"
+# rdkafka = { version = "0.29", features = ["dynamic-linking"] }  # Dynamic linking
+tokio = { version = "1.24.1", features = ["full"] }
+env_logger = "~0.9"
+log = {version = "~0.4", features = ["release_max_level_info"]}
+chrono = "0.4.23"
+
 
 [[bin]]
 name = "produce"
@@ -20,8 +26,17 @@ name = "consume"
 path = "src/consume.rs"
 
 [[bin]]
-name = "avro_serdes"
-path = "src/avro_serdes.rs"
+name = "rd_produce"
+path = "src/rd_produce.rs"
+
+[[bin]]
+name = "rd_consume"
+path = "src/rd_consume.rs"
+
+
+[[bin]]
+name = "avro_serde"
+path = "src/avro_serde.rs"
 
 [dev-dependencies]
 criterion = { version = "~0.3", features = ["html_reports"] }

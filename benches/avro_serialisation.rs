@@ -69,6 +69,7 @@ fn encode_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &name, |b, name| {
             b.iter(|| encode(&schema, name));
         });
+
     }
     group.finish();
 
