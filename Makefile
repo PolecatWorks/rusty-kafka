@@ -1,20 +1,37 @@
 
 KAFKA_BOOTSTRAP := localhost:9092
 
+export CONFLUENT_HOME := $(HOME)/Development/kafka/confluent-7.3.1
+SCHEMA_REGISTRY_START:=$(CONFLUENT_HOME)/bin/schema-registry-start
+ZOOKEEPER_SERVER_START:=$(CONFLUENT_HOME)/bin/zookeeper-server-start
+KAFKA_SERVER_START:=$(CONFLUENT_HOME)/bin/kafka-server-start
+KAFKA_TOPICS:=$(CONFLUENT_HOME)/bin/kafka-topics
+
+
+
+
 start-zookeeper:
-	/opt/homebrew/opt/zookeeper/bin/zkServer start-foreground
+	$(ZOOKEEPER_SERVER_START) $(CONFLUENT_HOME)/etc/kafka/zookeeper.properties
 
 start-kafka:
-	kafka-server-start /opt/homebrew/etc/kafka/server.properties
+	$(KAFKA_SERVER_START) $(CONFLUENT_HOME)/etc/kafka/server.properties
 
-kafka-list:
-	kafka-topics --bootstrap-server $(KAFKA_BOOTSTRAP) --list
+start-schema:
+	$(SCHEMA_REGISTRY_START) $(CONFLUENT_HOME)/etc/schema-registry/schema-registry.properties
 
-kafka-create:
-	kafka-topics --bootstrap-server $(KAFKA_BOOTSTRAP) --create --topic "test.topic"
 
-kafka-delete:
-	kafka-topics --bootstrap-server $(KAFKA_BOOTSTRAP) --delete --topic "test.topic"
+
+topics-list:
+	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --list
+
+topics-create:
+	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --create --topic "test.topic"
+
+topics-delete:
+	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --delete --topic "test.topic"
+
+
+
 
 
 benchmark:
