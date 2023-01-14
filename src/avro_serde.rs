@@ -2,6 +2,7 @@ use std::error::Error;
 
 use avro_rs::types::Record as AvroRecord;
 use avro_rs::{from_value, Codec, Reader, Writer, to_avro_datum};
+use schema_registry_converter::schema_registry_common::{get_payload, get_bytes_result};
 
 // use kafka::utils::Shutdown;
 
@@ -55,7 +56,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let justval = to_avro_datum(&schema, record).unwrap();
     println!("justval length is {}", justval.len());
 
+    let kafkajustval = get_payload(1,justval);
 
+    println!("kafkajustval length is {}", kafkajustval.len());
+
+    let bytes_result = get_bytes_result(Some(&kafkajustval));
+    println!("result = {:?}", bytes_result);
 
     Ok(())
 }
