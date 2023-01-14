@@ -15,6 +15,7 @@ tokio = { version = "1.24.1", features = ["full"] }
 env_logger = "~0.9"
 log = {version = "~0.4", features = ["release_max_level_info"]}
 chrono = "0.4.23"
+schema_registry_converter = "3.1.0"
 
 
 [[bin]]
@@ -33,10 +34,14 @@ path = "src/rd_produce.rs"
 name = "rd_consume"
 path = "src/rd_consume.rs"
 
-
 [[bin]]
 name = "avro_serde"
 path = "src/avro_serde.rs"
+
+[[bin]]
+name = "schema_registry"
+path = "src/schema_registry.rs"
+
 
 [dev-dependencies]
 criterion = { version = "~0.3", features = ["html_reports"] }

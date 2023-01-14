@@ -68,7 +68,7 @@ struct Args {
     #[arg(long)]
     topic: String,
 }
-
+// cargo run --bin rd_produce -- --brokers localhost:9092 --topic test.topic --log-conf rdkafka=trace
 
 
 

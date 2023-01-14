@@ -107,7 +107,7 @@ struct Args {
     group: String,
 
 }
-
+// cargo run --bin rd_consume -- --brokers localhost:9092 --topic test.topic --log-conf rdkafka=trace --group gid1
 
 #[tokio::main]
 async fn main() {
