@@ -62,6 +62,7 @@ dependencies = [
  "log",
  "rdkafka",
  "schema_registry_converter",
+ "serde",
  "tokio",
 ]
 

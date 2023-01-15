@@ -1,4 +1,4 @@
-use clap::{Parser};
+use clap::Parser;
 use log::{info, warn};
 
 use rdkafka::client::ClientContext;
@@ -82,8 +82,6 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
     }
 }
 
-
-
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -98,20 +96,17 @@ struct Args {
     log_conf: String,
 
     /// Destination topic
-    #[arg(long="topic", short)]
+    #[arg(long = "topic", short)]
     topics: Vec<String>,
-
 
     /// Group id
     #[arg(long)]
     group: String,
-
 }
 // cargo run --bin rd_consume -- --brokers localhost:9092 --topic test.topic --log-conf rdkafka=trace --group gid1
 
 #[tokio::main]
 async fn main() {
-
     let args = Args::parse();
 
     setup_logger(true, &args.log_conf);

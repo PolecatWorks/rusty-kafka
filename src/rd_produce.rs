@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use clap::{Parser};
+use clap::Parser;
 use log::info;
 
 use rdkafka::config::ClientConfig;
@@ -50,7 +50,6 @@ async fn produce(brokers: &str, topic_name: &str) {
     }
 }
 
-
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -70,13 +69,9 @@ struct Args {
 }
 // cargo run --bin rd_produce -- --brokers localhost:9092 --topic test.topic --log-conf rdkafka=trace
 
-
-
 #[tokio::main]
 async fn main() {
-
     let args = Args::parse();
-
 
     setup_logger(true, &args.log_conf);
 

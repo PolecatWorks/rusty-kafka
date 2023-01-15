@@ -45,7 +45,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Encoded = {}", encoded.len());
 
-
     // ToDo: Update this to use Confluent compatible Avro : https://docs.confluent.io/3.2.0/schema-registry/docs/serializer-formatter.html#wire-format
 
     producer.send(&Record {
@@ -54,7 +53,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         key: (),
         value: encoded,
     })?;
-
 
     println!("Finished");
     Ok(())

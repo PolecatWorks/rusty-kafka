@@ -16,6 +16,7 @@ env_logger = "~0.9"
 log = {version = "~0.4", features = ["release_max_level_info"]}
 chrono = "0.4.23"
 schema_registry_converter = "3.1.0"
+serde ={ version= "1.0.152", features = ['derive'] }
 
 
 [[bin]]
