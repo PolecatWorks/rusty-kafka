@@ -1,8 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use avro_rs::types::Record as AvroRecord;
-use avro_rs::{from_value, Codec, Reader, Writer, to_value};
-use avro_rs::{to_avro_datum, Schema};
+use apache_avro::types::Record as AvroRecord;
+use apache_avro::{from_value, Codec, Reader, Writer, to_value, to_avro_datum, Schema};
 use schema_registry_converter::schema_registry_common::get_payload;
 use serde::{Deserialize, Serialize};
 use std::iter;
@@ -68,7 +67,7 @@ const AVRO_SCHEMA: &str = r#"{
   }"#;
 
 fn encode_benchmark(c: &mut Criterion) {
-    let schema = avro_rs::Schema::parse_str(AVRO_SCHEMA).unwrap();
+    let schema = Schema::parse_str(AVRO_SCHEMA).unwrap();
 
     let name = "Ben";
 

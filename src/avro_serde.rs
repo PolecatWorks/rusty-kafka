@@ -1,7 +1,7 @@
 use std::error::Error;
 
-use avro_rs::types::Record as AvroRecord;
-use avro_rs::{from_value, to_avro_datum, to_value, Codec, Reader, Writer};
+use apache_avro::types::Record as AvroRecord;
+use apache_avro::{from_value, to_avro_datum, to_value, Codec, Reader, Writer, Schema, AvroSchema};
 use schema_registry_converter::schema_registry_common::{get_bytes_result, get_payload};
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ const AVRO_SCHEMA: &str = r#"{
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Create an Avro writer and specify the Avro schema that we want to use to encode the messages.
-    let schema = avro_rs::Schema::parse_str(AVRO_SCHEMA)?;
+    let schema = Schema::parse_str(AVRO_SCHEMA)?;
     // let mut writer = Writer::with_codec(&schema, Vec::new(), Codec::Deflate);
 
     println!("{:?}", schema);
@@ -130,6 +130,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         let bytes_result = get_bytes_result(Some(&kafkajustval));
         println!("result = {:?}", bytes_result);
     }
+
+    {
+      #[derive(Debug, Serialize, Deserialize, AvroSchema)]
+      struct User {
+          name: String,
+          favourite_number: i32,
+      }
+
+      let schema = User::get_schema();
+
+      println!("Derrived Schema is {:?}", schema);
+    }
+
+
+
 
     Ok(())
 }

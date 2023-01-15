@@ -2,8 +2,8 @@ use std::error::Error;
 use std::io::{self, BufRead};
 use std::time::Duration;
 
-use avro_rs::types::Record as AvroRecord;
-use avro_rs::{from_value, Codec, Reader, Writer};
+use apache_avro::types::Record as AvroRecord;
+use apache_avro::{from_value, Codec, Reader, Writer, Schema};
 use kafka::client::KafkaClient;
 use kafka::consumer::Consumer;
 use kafka::producer::{Producer, Record, RequiredAcks};
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .create()?;
 
     // Create an Avro writer and specify the Avro schema that we want to use to encode the messages.
-    let schema = avro_rs::Schema::parse_str(AVRO_SCHEMA)?;
+    let schema = Schema::parse_str(AVRO_SCHEMA)?;
     let mut writer = Writer::new(&schema, Vec::new());
     // let mut writer = Writer::with_codec(&schema, Vec::new(), Codec::Deflate);
 
