@@ -43,6 +43,15 @@ path = "src/avro_serde.rs"
 name = "schema_registry"
 path = "src/schema_registry.rs"
 
+[[bin]]
+name = "avro_rd_produce"
+path = "src/avro/rd_produce.rs"
+
+[[bin]]
+name = "avro_rd_consume"
+path = "src/avro/rd_consume.rs"
+
+
 
 [dev-dependencies]
 criterion = { version = "~0.3", features = ["html_reports"] }
