@@ -34,7 +34,6 @@ async fn main() {
     let mystringschema = schema_generated.canonical_form();
     println!("Canonical form {}", mystringschema);
 
-
     let schema = SuppliedSchema {
         name: Some(String::from("nl.openweb.data.User")),
         schema_type: SchemaType::Avro,
@@ -74,6 +73,4 @@ async fn main() {
     // Delete soft first then permanent
     // curl -X DELETE http://localhost:8081/subjects/test0-value
     // curl -X DELETE http://localhost:8081/subjects/test0-value\?permanent=true
-
-
 }

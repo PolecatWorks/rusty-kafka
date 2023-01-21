@@ -1,9 +1,9 @@
 use std::io::Cursor;
 
-use apache_avro::{AvroSchema, Schema, from_avro_datum, from_value};
+use apache_avro::{from_avro_datum, from_value, AvroSchema, Schema};
 use clap::Parser;
 use env_logger::Env;
-use log::{info, warn, error};
+use log::{error, info, warn};
 
 use rdkafka::client::ClientContext;
 use rdkafka::config::{ClientConfig, RDKafkaLogLevel};
@@ -13,13 +13,14 @@ use rdkafka::error::KafkaResult;
 use rdkafka::message::{Headers, Message};
 use rdkafka::topic_partition_list::TopicPartitionList;
 use rdkafka::util::get_rdkafka_version;
-use schema_registry_converter::async_impl::schema_registry::{SrSettings, post_schema};
+use schema_registry_converter::async_impl::schema_registry::{post_schema, SrSettings};
 use schema_registry_converter::schema_registry_common::BytesResult::Valid;
 
 mod structures;
-use schema_registry_converter::schema_registry_common::{get_bytes_result, SuppliedSchema, SchemaType};
+use schema_registry_converter::schema_registry_common::{
+    get_bytes_result, SchemaType, SuppliedSchema,
+};
 use structures::TestMe;
-
 
 // A context can be used to change the behavior of producers and consumers by adding callbacks
 // that will be executed by librdkafka.
@@ -45,7 +46,13 @@ impl ConsumerContext for CustomContext {
 // A type alias with your custom consumer can be created for convenience.
 type LoggingConsumer = StreamConsumer<CustomContext>;
 
-async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str], schema: &Schema, id: u32) {
+async fn consume_and_print(
+    brokers: &str,
+    group_id: &str,
+    topics: &[&str],
+    schema: &Schema,
+    id: u32,
+) {
     let context = CustomContext;
 
     let consumer: LoggingConsumer = ClientConfig::new()
@@ -68,6 +75,8 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str], schem
         match consumer.recv().await {
             Err(e) => warn!("Kafka error: {}", e),
             Ok(m) => {
+                let payload_len = m.payload().unwrap().len();
+
                 let payload = match m.payload_view::<str>() {
                     None => "",
                     Some(Ok(s)) => s,
@@ -88,20 +97,20 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str], schem
                 let bytes_result = get_bytes_result(Some(m.payload().unwrap()));
                 if let Valid(msg_id, payload) = bytes_result {
                     if msg_id == id {
-                        println!("I got me a serde to try");
                         let mut reader = Cursor::new(payload);
                         let myval = from_avro_datum(schema, &mut reader, None).unwrap();
 
-                        let testme_out = from_value::<TestMe>(&myval);
-                        println!("I got the content : {:?}", testme_out);
-
+                        let testme_out = from_value::<TestMe>(&myval).unwrap();
+                        println!(
+                            "I got the content : {:?} of length {}",
+                            testme_out, payload_len
+                        );
                     } else {
-                        println!("Looking for id {} but found {}", id, msg_id);
+                        error!("Looking for id {} but found {}", id, msg_id);
                     }
                 } else {
-                    println!("Message was not valid");
+                    error!("Message was not valid");
                 }
-
 
                 consumer.commit_message(&m, CommitMode::Async).unwrap();
             }
@@ -136,17 +145,13 @@ struct Args {
 async fn main() {
     let args = Args::parse();
 
-
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
-
-
 
     let (version_n, version_s) = get_rdkafka_version();
     info!("rd_kafka_version: 0x{:08x}, {}", version_n, version_s);
 
     let topic_list: Vec<&str> = args.topics.iter().map(AsRef::as_ref).collect();
-
 
     let testme_schema = TestMe::get_schema();
     println!("Schema is {}", testme_schema.canonical_form());
@@ -163,19 +168,28 @@ async fn main() {
 
         let sr_settings = SrSettings::new(args.registry);
 
-        let result = post_schema(&sr_settings, format!("{}-value",args.topics[0]), schema_query)
-            .await
-            .expect("Reply from registry");
+        let result = post_schema(
+            &sr_settings,
+            format!("{}-value", args.topics[0]),
+            schema_query,
+        )
+        .await
+        .expect("Reply from registry");
 
         println!("Registry replied: {:?}", result);
 
         let schema_id = result.id;
 
-
-        consume_and_print(&args.brokers, &args.group, &topic_list, &testme_schema, schema_id).await
+        consume_and_print(
+            &args.brokers,
+            &args.group,
+            &topic_list,
+            &testme_schema,
+            schema_id,
+        )
+        .await
         // produce(&args.brokers, &args.topic, &testme_schema, schema_id).await
     } else {
         error!("Schema was not a record. Can only deal with records");
     }
-
 }

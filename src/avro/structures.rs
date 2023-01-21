@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use apache_avro::AvroSchema;
-use serde::{Serialize, Deserialize};
-
-
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, AvroSchema)]
 #[avro(namespace = "com.polecatworks.avrotest")]

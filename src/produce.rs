@@ -1,11 +1,9 @@
 use std::error::Error;
-use std::io::{self, BufRead};
 use std::time::Duration;
 
 use apache_avro::types::Record as AvroRecord;
-use apache_avro::{from_value, Codec, Reader, Writer, Schema};
-use kafka::client::KafkaClient;
-use kafka::consumer::Consumer;
+use apache_avro::{Schema, Writer};
+
 use kafka::producer::{Producer, Record, RequiredAcks};
 // use kafka::utils::Shutdown;
 

@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 use apache_avro::types::Record as AvroRecord;
-use apache_avro::{from_value, Codec, Reader, Writer, to_value, to_avro_datum, Schema};
+use apache_avro::{from_value, to_avro_datum, to_value, Codec, Reader, Schema, Writer};
 use schema_registry_converter::schema_registry_common::get_payload;
 use serde::{Deserialize, Serialize};
 use std::iter;
@@ -44,10 +44,9 @@ struct User {
 }
 
 fn serdes_encode_kafka(schema: &Schema, name: &str) -> Vec<u8> {
-
     let user = User {
-            name: name.to_owned(),
-            favourite_number: 3,
+        name: name.to_owned(),
+        favourite_number: 3,
     };
 
     let avro_value = to_value(user).unwrap();

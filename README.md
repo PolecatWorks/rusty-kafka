@@ -17,3 +17,10 @@ Start zookeeper
 start kafka on cli
 
     /opt/homebrew/opt/kafka/bin/kafka-server-start /opt/homebrew/etc/kafka/server.propertie
+
+
+# Build a perf tester to chase messages
+
+Create a service that reads a kafka message, identifies a timestamp. Then modifies the timestamp to now and then writes the old timestamp in the previous timestamp location. Then send the message onto the kafka topic.
+At this point it can immediately pick it up again and rinse repeat. When writing write a specific id for the service to the message as well to indicate who wrote it.
+Allow it to be configured to read and write from configurable topics so we can chase between services OR we can max out a given service or give a stack of messages to a service to see the effect of a number in flight.

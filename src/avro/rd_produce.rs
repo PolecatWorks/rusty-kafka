@@ -1,23 +1,20 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use apache_avro::{AvroSchema, Schema, to_value, to_avro_datum};
+use apache_avro::{to_avro_datum, to_value, AvroSchema, Schema};
 use clap::Parser;
-use log::{info, error};
 use env_logger::Env;
+use log::{error, info};
 
 use rdkafka::config::ClientConfig;
 use rdkafka::message::{Header, OwnedHeaders};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::util::get_rdkafka_version;
-use schema_registry_converter::async_impl::schema_registry::{SrSettings, post_schema};
-use schema_registry_converter::schema_registry_common::{SuppliedSchema, SchemaType, get_payload};
-use serde::{Deserialize, Serialize};
-
+use schema_registry_converter::async_impl::schema_registry::{post_schema, SrSettings};
+use schema_registry_converter::schema_registry_common::{get_payload, SchemaType, SuppliedSchema};
 
 mod structures;
 use structures::TestMe;
-
 
 async fn produce(brokers: &str, topic_name: &str, schema: &Schema, id: u32) {
     let producer: &FutureProducer = &ClientConfig::new()
@@ -36,14 +33,13 @@ async fn produce(brokers: &str, topic_name: &str, schema: &Schema, id: u32) {
             let user = TestMe {
                 name: format!("Ben-{}", i),
                 uuid: None,
-                ancestors: vec!(),
+                ancestors: vec![],
                 meta: HashMap::new(),
             };
 
             let avro_value = to_value(user).unwrap();
             let avro_bytes = to_avro_datum(&schema, avro_value).unwrap();
             let avro_payload = get_payload(id, avro_bytes);
-
 
             let delivery_status = producer
                 .send(
@@ -70,14 +66,9 @@ async fn produce(brokers: &str, topic_name: &str, schema: &Schema, id: u32) {
     }
 }
 
-
-
-
-
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-
     /// Broker list in kafka format for host:port
     #[arg(long, default_value_t = String::from("localhost:9092"))]
     brokers: String,
@@ -91,8 +82,6 @@ struct Args {
     topic: String,
 }
 // cargo run --bin rd_produce -- --topic test.topic
-
-
 
 #[tokio::main]
 async fn main() {
@@ -119,7 +108,7 @@ async fn main() {
 
         let sr_settings = SrSettings::new(args.registry);
 
-        let result = post_schema(&sr_settings, format!("{}-value",args.topic), schema_query)
+        let result = post_schema(&sr_settings, format!("{}-value", args.topic), schema_query)
             .await
             .expect("Reply from registry");
 
@@ -127,12 +116,8 @@ async fn main() {
 
         let schema_id = result.id;
 
-
         produce(&args.brokers, &args.topic, &testme_schema, schema_id).await
     } else {
         error!("Schema was not a record. Can only deal with records");
     }
-
-
-
 }

@@ -2,7 +2,6 @@ use std::error::Error;
 
 use apache_avro::{Reader, Schema, Writer};
 
-use apache_avro::types::Record as AvroRecord;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 
@@ -20,7 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Create an Avro writer and specify the Avro schema that we want to use to encode the messages.
     let schema = Schema::parse_str(AVRO_SCHEMA)?;
-    let mut writer = Writer::new(&schema, Vec::new());
+    let mut _writer = Writer::new(&schema, Vec::new());
     // let mut writer = Writer::with_codec(&schema, Vec::new(), Codec::Deflate);
 
     println!("{:?}", schema);

@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use apache_avro::types::Record as AvroRecord;
-use apache_avro::{from_value, to_avro_datum, to_value, Codec, Reader, Writer, Schema, AvroSchema};
+use apache_avro::{from_value, to_avro_datum, to_value, AvroSchema, Reader, Schema, Writer};
 use schema_registry_converter::schema_registry_common::{get_bytes_result, get_payload};
 use serde::{Deserialize, Serialize};
 
@@ -132,19 +132,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     {
-      #[derive(Debug, Serialize, Deserialize, AvroSchema)]
-      struct User {
-          name: String,
-          favourite_number: i32,
-      }
+        #[derive(Debug, Serialize, Deserialize, AvroSchema)]
+        struct User {
+            name: String,
+            favourite_number: i32,
+        }
 
-      let schema = User::get_schema();
+        let schema = User::get_schema();
 
-      println!("Derrived Schema is {:?}", schema);
+        println!("Derrived Schema is {:?}", schema);
     }
-
-
-
 
     Ok(())
 }
