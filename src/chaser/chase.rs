@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 // Read a kafka message. Deserialise it then update and write it.
-use std::thread;
 use std::time::Duration;
 
-use apache_avro::{to_avro_datum, to_value, AvroSchema, Schema};
+use apache_avro::{from_avro_datum, from_value, to_avro_datum, to_value, AvroSchema, Schema};
+use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use env_logger::Env;
 use log::{error, info};
@@ -19,11 +19,18 @@ use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::util::get_rdkafka_version;
 use rdkafka::Message;
 use schema_registry_converter::async_impl::schema_registry::{post_schema, SrSettings};
-use schema_registry_converter::schema_registry_common::{SchemaType, SuppliedSchema};
+use schema_registry_converter::schema_registry_common::BytesResult::Valid;
+use schema_registry_converter::schema_registry_common::{
+    get_bytes_result, get_payload, SchemaType, SuppliedSchema,
+};
 
 use crate::chase_structures::Chaser;
 
 mod chase_structures;
+use std::io::Cursor;
+
+mod produce;
+use produce::produce;
 
 async fn record_borrowed_message_receipt(msg: &BorrowedMessage<'_>) {
     // Simulate some work that must be done in the same order as messages are
@@ -38,17 +45,48 @@ async fn record_owned_message_receipt(_msg: &OwnedMessage) {
 }
 
 // Emulates an expensive, synchronous computation.
-fn expensive_computation<'a>(msg: OwnedMessage) -> String {
+fn expensive_computation<'a>(msg: OwnedMessage) -> Result<Vec<u8>, String> {
     info!("Starting expensive computation on message {}", msg.offset());
-    thread::sleep(Duration::from_millis(rand::random::<u64>() % 5000));
-    info!(
-        "Expensive computation completed on message {}",
-        msg.offset()
-    );
-    match msg.payload_view::<str>() {
-        Some(Ok(payload)) => format!("Payload len for {} is {}", payload, payload.len()),
-        Some(Err(_)) => "Message payload is not a string".to_owned(),
-        None => "No payload".to_owned(),
+
+    match msg.payload_view::<[u8]>() {
+        Some(Ok(payload)) => {
+            let bytes_result = get_bytes_result(Some(payload));
+            if let Valid(msg_id, payload) = bytes_result {
+                let schema = Chaser::get_schema();
+
+                // TODO: get schema from the schemas object not created directly
+                // TODO: confirm we have a matching msg_id
+                let mut reader = Cursor::new(payload);
+                let myval = from_avro_datum(&schema, &mut reader, None).unwrap();
+
+                let mut chaser = from_value::<Chaser>(&myval).unwrap();
+
+                // Update chaser with content for next message
+                chaser.ttl -= 1;
+                if chaser.ttl == 0 {
+                    return Err(format!("TTL reached for {}", chaser.id));
+                }
+                chaser.previous = Some(chaser.sent);
+                chaser.sent = Utc::now().timestamp_nanos();
+
+                // thread::sleep(Duration::from_millis(rand::random::<u64>() % 5000));
+                info!(
+                    "Expensive computation completed on message {}",
+                    msg.offset()
+                );
+
+                // Serialize the chaser object again
+                let avro_value = to_value(chaser).unwrap();
+                let avro_bytes = to_avro_datum(&schema, avro_value).unwrap();
+                let avro_payload = get_payload(msg_id, avro_bytes);
+
+                Ok(avro_payload)
+            } else {
+                Err("no go".to_owned())
+            }
+        }
+        Some(Err(_)) => Err("Message payload is not a string".to_owned()),
+        None => Err("No payload".to_owned()),
     }
 }
 
@@ -67,7 +105,7 @@ async fn run_async_processor(
     input_topic: String,
     output_topic: String,
 ) {
-    println!("Using schemas: {:?}", schemas);
+    info!("Using schemas: {:?}", schemas);
 
     // Create the `StreamConsumer`, to receive the messages from the topic in form of a `Stream`.
     let consumer: StreamConsumer = ClientConfig::new()
@@ -109,15 +147,22 @@ async fn run_async_processor(
                     tokio::task::spawn_blocking(|| expensive_computation(owned_message))
                         .await
                         .expect("failed to wait for expensive computation");
-                let produce_future = producer.send(
-                    FutureRecord::to(&output_topic)
-                        .key("some key")
-                        .payload(&computation_result),
-                    Duration::from_secs(0),
-                );
-                match produce_future.await {
-                    Ok(delivery) => println!("Sent: {:?}", delivery),
-                    Err((e, _)) => println!("Error: {:?}", e),
+
+                match computation_result {
+                    Ok(msg_payload) => {
+                        let produce_future = producer.send(
+                            FutureRecord::to(&output_topic)
+                                .key("some key")
+                                .payload(&msg_payload),
+                            Duration::from_secs(0),
+                        );
+
+                        match produce_future.await {
+                            Ok(delivery) => info!("Sent: {:?}", delivery),
+                            Err((e, _)) => error!("Error: {:?}", e),
+                        }
+                    }
+                    Err(e) => info!("Payload not returned {:?}", e),
                 }
             });
             Ok(())
@@ -146,6 +191,18 @@ enum Commands {
         /// Output topic
         #[arg(long)]
         output_topic: String,
+
+        /// Message count
+        #[arg(long, default_value_t = 1)]
+        count: u32,
+
+        /// Message ttl
+        #[arg(long, default_value_t = 10)]
+        ttl: u32,
+
+        /// Message id
+        #[arg(long, default_value_t=String::from("unlabelled"))]
+        msg_id: String,
     },
     /// Run the processing loop
     Run {
@@ -185,17 +242,17 @@ struct KafkaService {
 
 // cargo run --bin chaser -- --num-workers 1 --input-topic input --output-topic output --group-id gid2
 
-async fn get_schema_id(registry: &str, topic: &str) -> u32 {
+async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), String> {
     let testme_schema = Chaser::get_schema();
-    println!("Schema is {}", testme_schema.canonical_form());
+    info!("Schema is {}", testme_schema.canonical_form());
 
     if let Schema::Record { ref name, .. } = testme_schema {
-        println!("{}", name);
-
+        info!("{}", name);
+        let my_schema = Chaser::get_schema();
         let schema_query = SuppliedSchema {
             name: Some(name.to_string()).to_owned(),
             schema_type: SchemaType::Avro,
-            schema: Chaser::get_schema().canonical_form(),
+            schema: my_schema.canonical_form(),
             references: vec![],
         };
 
@@ -205,11 +262,11 @@ async fn get_schema_id(registry: &str, topic: &str) -> u32 {
             .await
             .expect("Reply from registry");
 
-        println!("Registry replied: {:?}", result);
+        info!("Registry replied: {:?}", result);
 
-        return result.id;
+        return Ok((result.id, my_schema));
     }
-    return 3;
+    return Err("Got a schema that was not Record".to_string());
 }
 
 #[tokio::main]
@@ -226,10 +283,26 @@ async fn main() {
         Commands::Inject {
             kafka,
             output_topic,
+            count,
+            ttl,
+            msg_id,
         } => {
-            println!("Inject with {:?} to {}", kafka, output_topic);
+            info!("Inject with {:?} to {}", kafka, output_topic);
 
-            let schema_id = get_schema_id(&kafka.registry, &output_topic).await;
+            let (schema_id, schema) = get_schema_id(&kafka.registry, &output_topic)
+                .await
+                .expect("valid schema");
+
+            produce(
+                &kafka.brokers,
+                &output_topic,
+                &schema,
+                schema_id,
+                count,
+                ttl,
+                &msg_id,
+            )
+            .await
         }
         Commands::Run {
             kafka,
@@ -238,14 +311,11 @@ async fn main() {
             output_topic,
             group_id,
         } => {
-            println!("Running");
-
-            let schema_id = get_schema_id(&kafka.registry, &output_topic).await;
+            let (schema_id, schema) = get_schema_id(&kafka.registry, &output_topic).await.unwrap();
 
             let mut schemas = HashMap::new();
 
-            schemas.insert(schema_id,  Chaser::get_schema());
-
+            schemas.insert(schema_id, schema);
 
             (0..num_workers)
                 .map(|_| {

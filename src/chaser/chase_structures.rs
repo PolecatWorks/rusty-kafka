@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 #[avro(namespace = "com.polecatworks.chaser")]
 pub(crate) struct Chaser {
     pub(crate) name: String,
-    pub(crate) uuid: Option<String>,
+    pub(crate) id: String,
     pub(crate) sent: i64,
-    pub(crate) previous: i64,
+    pub(crate) ttl: u32,
+    pub(crate) previous: Option<i64>,
 }
