@@ -68,7 +68,7 @@ async fn consume_and_print(
         .expect("Consumer creation failed");
 
     consumer
-        .subscribe(&topics.to_vec())
+        .subscribe(topics)
         .expect("Can't subscribe to specified topics");
 
     loop {
@@ -160,7 +160,7 @@ async fn main() {
         println!("{}", name);
 
         let schema_query = SuppliedSchema {
-            name: Some(name.to_string()).to_owned(),
+            name: Some(name.to_string()),
             schema_type: SchemaType::Avro,
             schema: TestMe::get_schema().canonical_form(),
             references: vec![],

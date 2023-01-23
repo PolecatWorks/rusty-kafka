@@ -38,7 +38,7 @@ async fn produce(brokers: &str, topic_name: &str, schema: &Schema, id: u32) {
             };
 
             let avro_value = to_value(user).unwrap();
-            let avro_bytes = to_avro_datum(&schema, avro_value).unwrap();
+            let avro_bytes = to_avro_datum(schema, avro_value).unwrap();
             let avro_payload = get_payload(id, avro_bytes);
 
             let delivery_status = producer
@@ -100,7 +100,7 @@ async fn main() {
         println!("{}", name);
 
         let schema_query = SuppliedSchema {
-            name: Some(name.to_string()).to_owned(),
+            name: Some(name.to_string()),
             schema_type: SchemaType::Avro,
             schema: TestMe::get_schema().canonical_form(),
             references: vec![],

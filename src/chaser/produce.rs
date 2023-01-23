@@ -38,13 +38,13 @@ pub(crate) async fn produce(
             let user = Chaser {
                 name: msg_id.to_owned(),
                 id: format!("{}-{}", msg_id, i),
-                ttl: ttl,
+                ttl,
                 sent: utc_now.timestamp_nanos(),
                 previous: None,
             };
 
             let avro_value = to_value(user).unwrap();
-            let avro_bytes = to_avro_datum(&schema, avro_value).unwrap();
+            let avro_bytes = to_avro_datum(schema, avro_value).unwrap();
             let avro_payload = get_payload(id, avro_bytes);
 
             let delivery_status = producer

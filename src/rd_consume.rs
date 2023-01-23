@@ -54,7 +54,7 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
         .expect("Consumer creation failed");
 
     consumer
-        .subscribe(&topics.to_vec())
+        .subscribe(topics)
         .expect("Can't subscribe to specified topics");
 
     loop {

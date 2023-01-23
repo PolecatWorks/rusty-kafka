@@ -45,7 +45,7 @@ async fn record_owned_message_receipt(_msg: &OwnedMessage) {
 }
 
 // Emulates an expensive, synchronous computation.
-fn expensive_computation<'a>(msg: OwnedMessage) -> Result<Vec<u8>, String> {
+fn expensive_computation(msg: OwnedMessage) -> Result<Vec<u8>, String> {
     info!("Starting expensive computation on message {}", msg.offset());
 
     match msg.payload_view::<[u8]>() {
@@ -250,7 +250,7 @@ async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), Str
         info!("{}", name);
         let my_schema = Chaser::get_schema();
         let schema_query = SuppliedSchema {
-            name: Some(name.to_string()).to_owned(),
+            name: Some(name.to_string()),
             schema_type: SchemaType::Avro,
             schema: my_schema.canonical_form(),
             references: vec![],
@@ -266,7 +266,7 @@ async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), Str
 
         return Ok((result.id, my_schema));
     }
-    return Err("Got a schema that was not Record".to_string());
+    Err("Got a schema that was not Record".to_string())
 }
 
 #[tokio::main]
@@ -328,7 +328,7 @@ async fn main() {
                     ))
                 })
                 .collect::<FuturesUnordered<_>>()
-                .for_each(|_| async { () })
+                .for_each(|_| async {})
                 .await
         }
         Commands::Me(service) => {

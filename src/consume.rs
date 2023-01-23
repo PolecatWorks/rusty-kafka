@@ -59,7 +59,7 @@ fn consume_messages(
 
         for ms in mss.iter() {
             for m in ms.messages() {
-                let reader = Reader::with_schema(&schema, m.value).unwrap();
+                let reader = Reader::with_schema(schema, m.value).unwrap();
                 for value in reader {
                     println!(
                         "{}:{}@{} {:?}",
