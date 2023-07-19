@@ -27,6 +27,7 @@ fn encode_datum(schema: &Schema, name: &str) -> Vec<u8> {
     let encoded = to_avro_datum(schema, record).unwrap();
     return encoded;
 }
+
 fn encode_kafka(schema: &Schema, name: &str) -> Vec<u8> {
     let mut record = AvroRecord::new(schema).unwrap();
     record.put("name", name);
