@@ -2,6 +2,7 @@
 
 Try out kafka for sending/receiving avro messages
 
+Download kafka community to try out from here: https://docs.confluent.io/platform/current/installation/installing_cp/zip-tar.html#get-the-software
 
 
 # Start Kafka
@@ -28,8 +29,8 @@ Allow it to be configured to read and write from configurable topics so we can c
 
 # Schema Registry commands
 
-curl -X GET http://localhost:8081/subjects
-curl -X GET http://localhost:8081/subjects/test3-value/versions
-curl -X DELETE http://localhost:8081/subjects/output0-value
-curl -X GET http://localhost:8081/subjects\?deleted=true
-curl -X DELETE http://localhost:8081/subjects/test3-value\?permanent=true
+    curl -X GET http://localhost:8081/subjects
+    curl -X GET http://localhost:8081/subjects/test3-value/versions
+    curl -X DELETE http://localhost:8081/subjects/output0-value
+    curl -X GET http://localhost:8081/subjects\?deleted=true
+    curl -X DELETE http://localhost:8081/subjects/test3-value\?permanent=true

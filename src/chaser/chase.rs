@@ -2,6 +2,7 @@ use std::collections::HashMap;
 // Read a kafka message. Deserialise it then update and write it.
 use std::time::Duration;
 
+use apache_avro::schema::RecordSchema;
 use apache_avro::{from_avro_datum, from_value, to_avro_datum, to_value, AvroSchema, Schema};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
@@ -246,7 +247,7 @@ async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), Str
     let testme_schema = Chaser::get_schema();
     info!("Schema is {}", testme_schema.canonical_form());
 
-    if let Schema::Record { ref name, .. } = testme_schema {
+    if let Schema::Record(RecordSchema { name, .. }) = testme_schema {
         info!("{}", name);
         let my_schema = Chaser::get_schema();
         let schema_query = SuppliedSchema {

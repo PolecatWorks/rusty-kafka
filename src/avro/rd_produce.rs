@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use apache_avro::schema::RecordSchema;
 use apache_avro::{to_avro_datum, to_value, AvroSchema, Schema};
 use clap::Parser;
 use env_logger::Env;
@@ -96,7 +97,7 @@ async fn main() {
     let testme_schema = TestMe::get_schema();
     println!("Schema is {}", testme_schema.canonical_form());
 
-    if let Schema::Record { ref name, .. } = testme_schema {
+    if let Schema::Record(RecordSchema { ref name, .. }) = testme_schema {
         println!("{}", name);
 
         let schema_query = SuppliedSchema {
