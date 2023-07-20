@@ -34,3 +34,14 @@ Allow it to be configured to read and write from configurable topics so we can c
     curl -X DELETE http://localhost:8081/subjects/output0-value
     curl -X GET http://localhost:8081/subjects\?deleted=true
     curl -X DELETE http://localhost:8081/subjects/test3-value\?permanent=true
+
+# Running Chaser
+
+Start Zookeeper
+Start Kafka
+Start AvroSchema Registry
+Create the topics
+Create Chaser command to run
+cargo run --bin chaser -- run --input-topic input --output-topic input --group-id gid0
+Then inject data into the topic
+cargo run --bin chaser inject --output-topic input --count 100 --ttl 100
