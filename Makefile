@@ -6,7 +6,7 @@ SCHEMA_REGISTRY_START:=$(CONFLUENT_HOME)/bin/schema-registry-start
 ZOOKEEPER_SERVER_START:=$(CONFLUENT_HOME)/bin/zookeeper-server-start
 KAFKA_SERVER_START:=$(CONFLUENT_HOME)/bin/kafka-server-start
 KAFKA_TOPICS:=$(CONFLUENT_HOME)/bin/kafka-topics
-
+KAFKA_CONSUMERS:=$(CONFLUENT_HOME)/bin/kafka-get-offsets
 
 
 
@@ -23,6 +23,9 @@ start-schema:
 
 topics-list:
 	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --list
+
+groups-list:
+	$(KAFKA_CONSUMERS) --bootstrap-server $(KAFKA_BOOTSTRAP)
 
 topics-create:
 	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --create --topic "test.topic"

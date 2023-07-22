@@ -7,7 +7,7 @@ use apache_avro::{from_avro_datum, from_value, to_avro_datum, to_value, AvroSche
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use env_logger::Env;
-use log::{error, info};
+use log::{error, info, warn};
 
 use futures::stream::FuturesUnordered;
 use futures::{StreamExt, TryStreamExt};
@@ -163,7 +163,7 @@ async fn run_async_processor(
                             Err((e, _)) => error!("Error: {:?}", e),
                         }
                     }
-                    Err(e) => info!("Payload not returned {:?}", e),
+                    Err(e) => warn!("Payload not returned {:?}", e),
                 }
             });
             Ok(())
