@@ -46,7 +46,7 @@ async fn record_owned_message_receipt(_msg: &OwnedMessage) {
 }
 
 // Emulates an expensive, synchronous computation.
-fn expensive_computation(msg: OwnedMessage) -> Result<Vec<u8>, String> {
+fn expensive_computation(msg: &OwnedMessage) -> Result<(Vec<u8>, Vec<u8>), String> {
     info!("Starting expensive computation on message {}", msg.offset());
 
     match msg.payload_view::<[u8]>() {
@@ -67,7 +67,7 @@ fn expensive_computation(msg: OwnedMessage) -> Result<Vec<u8>, String> {
                 if chaser.ttl == 0 {
                     return Err(format!("TTL reached for {}", chaser.id));
                 }
-                chaser.previous = Some(chaser.sent);
+                // chaser.previous = Some(chaser.sent);
                 chaser.sent = Utc::now().timestamp_nanos();
 
                 // thread::sleep(Duration::from_millis(rand::random::<u64>() % 5000));
@@ -81,7 +81,7 @@ fn expensive_computation(msg: OwnedMessage) -> Result<Vec<u8>, String> {
                 let avro_bytes = to_avro_datum(&schema, avro_value).unwrap();
                 let avro_payload = get_payload(msg_id, avro_bytes);
 
-                Ok(avro_payload)
+                Ok((msg.key_view::<[u8]>().expect("").expect("found key").to_vec(),avro_payload))
             } else {
                 Err("no go".to_owned())
             }
@@ -144,16 +144,17 @@ async fn run_async_processor(
                 // The body of this block will be executed on the main thread pool,
                 // but we perform `expensive_computation` on a separate thread pool
                 // for CPU-intensive tasks via `tokio::task::spawn_blocking`.
+                // let my_key = owned_message.key().expect("keyed").clone();
                 let computation_result =
-                    tokio::task::spawn_blocking(|| expensive_computation(owned_message))
+                    tokio::task::spawn_blocking(move || expensive_computation(&owned_message))
                         .await
                         .expect("failed to wait for expensive computation");
 
                 match computation_result {
-                    Ok(msg_payload) => {
+                    Ok((msg_key, msg_payload)) => {
                         let produce_future = producer.send(
                             FutureRecord::to(&output_topic)
-                                .key("some key")
+                                .key(&msg_key)
                                 .payload(&msg_payload),
                             Duration::from_secs(0),
                         );
