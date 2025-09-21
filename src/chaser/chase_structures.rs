@@ -8,5 +8,6 @@ pub(crate) struct Chaser {
     pub(crate) id: String,
     pub(crate) sent: i64,
     pub(crate) ttl: u32,
+    #[avro(default = "null")]
     pub(crate) previous: Option<i64>,
 }

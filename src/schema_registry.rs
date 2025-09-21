@@ -34,6 +34,9 @@ async fn main() {
     let mystringschema = schema_generated.canonical_form();
     println!("Canonical form {}", mystringschema);
 
+    let json_schema = schema_generated.json_schema();
+    println!("JSON schema {}", json_schema);
+
     let schema = SuppliedSchema {
         name: Some(String::from("nl.openweb.data.User")),
         schema_type: SchemaType::Avro,

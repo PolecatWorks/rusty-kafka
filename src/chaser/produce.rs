@@ -41,6 +41,7 @@ pub(crate) async fn produce(
                 ttl,
                 sent: utc_now.timestamp_nanos(),
                 previous: None,
+                // b: "ABC".to_string(),
             };
 
             let avro_value = to_value(user).unwrap();

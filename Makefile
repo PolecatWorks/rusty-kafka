@@ -38,7 +38,9 @@ topics-delete:
 	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --delete --topic "output"
 
 
-
+kafka-clean:
+	rm -rf /tmp/kafka-logs
+	rm -rf /tmp/zookeeper
 
 
 benchmark:
