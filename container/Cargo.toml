@@ -56,7 +56,7 @@ thiserror = "^2.0"
 # path = "src/avro/rd_consume.rs"
 
 [[bin]]
-name = "chaser"
+name = "kafka-chase"
 path = "src/chaser/chase.rs"
 
 [dev-dependencies]
