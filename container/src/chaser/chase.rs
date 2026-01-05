@@ -26,6 +26,8 @@ use schema_registry_converter::schema_registry_common::{
 };
 
 use crate::chase_structures::Chaser;
+mod error;
+use crate::error::MyError;
 
 mod chase_structures;
 use std::io::Cursor;
@@ -46,48 +48,54 @@ async fn record_owned_message_receipt(_msg: &OwnedMessage) {
 }
 
 // Emulates an expensive, synchronous computation.
-fn expensive_computation(msg: &OwnedMessage) -> Result<(Vec<u8>, Vec<u8>), String> {
+fn expensive_computation(msg: &OwnedMessage) -> Result<(Vec<u8>, Vec<u8>), MyError> {
     info!("Starting expensive computation on message {}", msg.offset());
 
-    match msg.payload_view::<[u8]>() {
-        Some(Ok(payload)) => {
-            let bytes_result = get_bytes_result(Some(payload));
-            if let Valid(msg_id, payload) = bytes_result {
-                let schema = Chaser::get_schema();
+    let payload = msg.payload_view::<[u8]>().and_then(|res| res.ok());
 
-                // TODO: get schema from the schemas object not created directly
-                // TODO: confirm we have a matching msg_id
-                let mut reader = Cursor::new(payload);
-                let myval = from_avro_datum(&schema, &mut reader, None).unwrap();
+    let bytes_result = get_bytes_result(payload);
+    if let Valid(msg_id, payload) = bytes_result {
+        let schema = Chaser::get_schema();
 
-                let mut chaser = from_value::<Chaser>(&myval).unwrap();
+        // TODO: get schema from the schemas object not created directly
+        // TODO: confirm we have a matching msg_id
+        let mut reader = Cursor::new(payload);
+        let myval = from_avro_datum(&schema, &mut reader, None)?;
 
-                // Update chaser with content for next message
-                chaser.ttl -= 1;
-                if chaser.ttl == 0 {
-                    return Err(format!("TTL reached for {}", chaser.id));
-                }
-                // chaser.previous = Some(chaser.sent);
-                chaser.sent = Utc::now().timestamp_nanos();
+        let mut chaser = from_value::<Chaser>(&myval)?;
 
-                // thread::sleep(Duration::from_millis(rand::random::<u64>() % 5000));
-                info!(
-                    "Expensive computation completed on message {}",
-                    msg.offset()
-                );
-
-                // Serialize the chaser object again
-                let avro_value = to_value(chaser).unwrap();
-                let avro_bytes = to_avro_datum(&schema, avro_value).unwrap();
-                let avro_payload = get_payload(msg_id, avro_bytes);
-
-                Ok((msg.key_view::<[u8]>().expect("").expect("found key").to_vec(),avro_payload))
-            } else {
-                Err("no go".to_owned())
-            }
+        // Update chaser with content for next message
+        chaser.ttl -= 1;
+        if chaser.ttl == 0 {
+            return Err(MyError::DynMessage(format!(
+                "TTL reached for {}",
+                chaser.id
+            )));
         }
-        Some(Err(_)) => Err("Message payload is not a string".to_owned()),
-        None => Err("No payload".to_owned()),
+        // chaser.previous = Some(chaser.sent);
+        chaser.sent = Utc::now()
+            .timestamp_nanos_opt()
+            .ok_or(MyError::Message("Could not get Nanoseconds"))?;
+
+        // thread::sleep(Duration::from_millis(rand::random::<u64>() % 5000));
+        info!(
+            "Expensive computation completed on message {}",
+            msg.offset()
+        );
+
+        // Serialize the chaser object again
+        let avro_value = to_value(chaser)?;
+        let avro_bytes = to_avro_datum(&schema, avro_value)?;
+        let avro_payload = get_payload(msg_id, avro_bytes);
+
+        Ok((
+            msg.key_view::<[u8]>()
+                .ok_or(MyError::Message("Could not get a key"))??
+                .to_vec(),
+            avro_payload,
+        ))
+    } else {
+        Err(MyError::Message("no go"))
     }
 }
 
@@ -106,7 +114,7 @@ async fn run_async_processor(
     input_topic: String,
     output_topic: String,
 ) {
-    info!("Using schemas: {:?}", schemas);
+    info!("Using schemas: {schemas:?}");
 
     // Create the `StreamConsumer`, to receive the messages from the topic in form of a `Stream`.
     let consumer: StreamConsumer = ClientConfig::new()
@@ -160,11 +168,11 @@ async fn run_async_processor(
                         );
 
                         match produce_future.await {
-                            Ok(delivery) => info!("Sent: {:?}", delivery),
-                            Err((e, _)) => error!("Error: {:?}", e),
+                            Ok(delivery) => info!("Sent: {delivery:?}"),
+                            Err((e, _)) => error!("Error: {e:?}"),
                         }
                     }
-                    Err(e) => warn!("Payload not returned {:?}", e),
+                    Err(e) => warn!("Payload not returned {e:?}"),
                 }
             });
             Ok(())
@@ -256,6 +264,8 @@ async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), Str
             schema_type: SchemaType::Avro,
             schema: serde_json::to_string(&my_schema).unwrap(),
             references: vec![],
+            properties: None,
+            tags: None,
         };
 
         let sr_settings = SrSettings::new(registry.to_owned());
@@ -264,7 +274,7 @@ async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), Str
             .await
             .expect("Reply from registry");
 
-        info!("Registry replied: {:?}", result);
+        info!("Registry replied: {result:?}");
 
         return Ok((result.id, my_schema));
     }
@@ -274,8 +284,6 @@ async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), Str
 #[tokio::main]
 async fn main() {
     let args = Cli::parse();
-
-
 
     // Start HERE
 
@@ -307,21 +315,24 @@ async fn main() {
 
         #[avro(default = "null")]
         previous: Option<i64>,
-
-
     }
     println!("{:?}", TestBasicStructWithDefaultValues::get_schema());
-    println!("Schema is {}", TestBasicStructWithDefaultValues::get_schema().canonical_form());
-    println!("Schema is {}", TestBasicStructWithDefaultValues::get_schema().canonical_form());
+    println!(
+        "Schema is {}",
+        TestBasicStructWithDefaultValues::get_schema().canonical_form()
+    );
+    println!(
+        "Schema is {}",
+        TestBasicStructWithDefaultValues::get_schema().canonical_form()
+    );
 
     // END here
-
 
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
 
     let (version_n, version_s) = get_rdkafka_version();
-    info!("rd_kafka_version: 0x{:08x}, {}", version_n, version_s);
+    info!("rd_kafka_version: 0x{version_n:08x}, {version_s}");
 
     match args.command {
         Commands::Inject {
@@ -331,7 +342,7 @@ async fn main() {
             ttl,
             msg_id,
         } => {
-            info!("Inject with {:?} to {}", kafka, output_topic);
+            info!("Inject with {kafka:?} to {output_topic}");
 
             let (schema_id, schema) = get_schema_id(&kafka.registry, &output_topic)
                 .await
@@ -376,8 +387,8 @@ async fn main() {
                 .await
         }
         Commands::Me(service) => {
-            error!("Me called with {:?}", service);
-            todo!()
+            error!("Me called with {service:?}");
+            todo!("missing code for Me")
         }
     }
 }
