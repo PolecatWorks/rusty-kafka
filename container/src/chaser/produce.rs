@@ -37,9 +37,9 @@ pub(crate) async fn produce(
 
             let user = Chaser {
                 name: msg_id.to_owned(),
-                id: format!("{}-{}", msg_id, i),
+                id: format!("{msg_id}-{i}"),
                 ttl,
-                sent: utc_now.timestamp_nanos(),
+                sent: utc_now.timestamp_nanos_opt().unwrap(),
                 previous: None,
                 // b: "ABC".to_string(),
             };
@@ -52,7 +52,7 @@ pub(crate) async fn produce(
                 .send(
                     FutureRecord::to(topic_name)
                         .payload(&avro_payload)
-                        .key(&format!("Key {}", i))
+                        .key(&format!("Key-{i}"))
                         .headers(OwnedHeaders::new().insert(Header {
                             key: "header_key",
                             value: Some("header_value"),
@@ -62,7 +62,7 @@ pub(crate) async fn produce(
                 .await;
 
             // This will be executed when the result is received.
-            info!("Delivery status for message {} received", i);
+            info!("Delivery status for message {i} received");
             delivery_status
         })
         .collect::<Vec<_>>();

@@ -1,48 +1,30 @@
-
-KAFKA_BOOTSTRAP := localhost:9092
-
-export CONFLUENT_HOME := $(HOME)/Development/kafka/confluent-7.3.1
-SCHEMA_REGISTRY_START:=$(CONFLUENT_HOME)/bin/schema-registry-start
-ZOOKEEPER_SERVER_START:=$(CONFLUENT_HOME)/bin/zookeeper-server-start
-KAFKA_SERVER_START:=$(CONFLUENT_HOME)/bin/kafka-server-start
-KAFKA_TOPICS:=$(CONFLUENT_HOME)/bin/kafka-topics
-KAFKA_CONSUMERS:=$(CONFLUENT_HOME)/bin/kafka-get-offsets
+.PHONY: backend-dev backend-test backend-docker backend-docker-run
 
 
+BE_DIR := container
+IMAGE_NAME := kafka-chase
 
-start-zookeeper:
-	$(ZOOKEEPER_SERVER_START) $(CONFLUENT_HOME)/etc/kafka/zookeeper.properties
-
-start-kafka:
-	$(KAFKA_SERVER_START) $(CONFLUENT_HOME)/etc/kafka/server.properties
-
-start-schema:
-	$(SCHEMA_REGISTRY_START) $(CONFLUENT_HOME)/etc/schema-registry/schema-registry.properties
+status-ports:
+	@lsof -i tcp:8080
+	@lsof -i tcp:4200
 
 
+backend-dev: export CAPTURE_LOG=INFO
+backend-dev:
+	cd ${BE_DIR} && cargo watch  -x "run -- start --config test-data/config-localhost.yaml --secrets test-data/secrets"
 
-topics-list:
-	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --list
+backend-test:
+	cd ${BE_DIR} && cargo watch --ignore test_data -x "test"
 
-groups-list:
-	$(KAFKA_CONSUMERS) --bootstrap-server $(KAFKA_BOOTSTRAP)
+backend-docker: PKG_NAME=kafka-chase
+backend-docker:
+	{ \
+	docker buildx build ${BE_DIR} -t $(IMAGE_NAME) -f ${BE_DIR}/Dockerfile; \
+	docker image ls $(IMAGE_NAME); \
+	}
 
-topics-create:
-	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --create --topic "test.topic"
-	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --create --topic "input"
-	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --create --topic "output"
-
-topics-delete:
-	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --delete --topic "test.topic"
-	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --delete --topic "input"
-	$(KAFKA_TOPICS) --bootstrap-server $(KAFKA_BOOTSTRAP) --delete --topic "output"
-
-
-kafka-clean:
-	rm -rf /tmp/kafka-logs
-	rm -rf /tmp/zookeeper
-
-
-benchmark:
-	@cargo criterion
-	@open target/criterion/reports/index.html
+backend-docker-run: backend-docker
+	docker run -it --rm --name $(IMAGE_NAME)-backend -p 8080:8080 --mount type=bind,src=$(PWD)/${BE_DIR}/test-data,dst=/test-data  \
+	-e CAPTURE_LOG=INFO \
+	-e APP_PERSISTENCE__DB__CONNECTION__URL=postgres://host.docker.internal:5432/service-capture \
+	$(IMAGE_NAME)-backend start --config /test-data/config-localhost.yaml --secrets /test-data/secrets

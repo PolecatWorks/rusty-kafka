@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kafka-chase.fullname" . }}
+  labels:
+    {{- include "kafka-chase.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type | default "ClusterIP" }}
+  ports:
+    - port: {{ .Values.service.port | default 80 }}
+      targetPort: http-web
+      protocol: TCP
+      name: http-web
+    - name: http-envoy-prom
+      port: 15020
+      protocol: TCP
+      targetPort: 15020
+  selector:
+    component: service-pod
+    {{- include "kafka-chase.selectorLabels" . | nindent 4 }}

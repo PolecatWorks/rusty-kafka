@@ -46,7 +46,7 @@ async fn produce(brokers: &str, topic_name: &str, schema: &Schema, id: u32) {
                 .send(
                     FutureRecord::to(topic_name)
                         .payload(&avro_payload)
-                        .key(&format!("Key {}", i))
+                        .key(&format!("Key-{}", i))
                         .headers(OwnedHeaders::new().insert(Header {
                             key: "header_key",
                             value: Some("header_value"),
