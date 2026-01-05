@@ -5,19 +5,15 @@ use std::time::Duration;
 use apache_avro::schema::RecordSchema;
 use apache_avro::{from_avro_datum, from_value, to_avro_datum, to_value, AvroSchema, Schema};
 use chrono::Utc;
-use clap::{Args, Parser, Subcommand};
-use env_logger::Env;
 use log::{error, info, warn};
 
-use futures::stream::FuturesUnordered;
-use futures::{StreamExt, TryStreamExt};
+use futures::TryStreamExt;
 
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::stream_consumer::StreamConsumer;
 use rdkafka::consumer::Consumer;
 use rdkafka::message::{BorrowedMessage, OwnedMessage};
 use rdkafka::producer::{FutureProducer, FutureRecord};
-use rdkafka::util::get_rdkafka_version;
 use rdkafka::Message;
 use schema_registry_converter::async_impl::schema_registry::{post_schema, SrSettings};
 use schema_registry_converter::schema_registry_common::BytesResult::Valid;
@@ -26,14 +22,11 @@ use schema_registry_converter::schema_registry_common::{
 };
 
 use crate::chase_structures::Chaser;
-mod error;
 use crate::error::MyError;
 
-mod chase_structures;
 use std::io::Cursor;
 
-mod produce;
-use produce::produce;
+// use produce::produce;
 
 async fn record_borrowed_message_receipt(msg: &BorrowedMessage<'_>) {
     // Simulate some work that must be done in the same order as messages are
@@ -107,7 +100,7 @@ fn expensive_computation(msg: &OwnedMessage) -> Result<(Vec<u8>, Vec<u8>), MyErr
 // `tokio::spawn` is used to handle IO-bound tasks in parallel (e.g., producing
 // the messages), while `tokio::task::spawn_blocking` is used to handle the
 // simulated CPU-bound task.
-async fn run_async_processor(
+pub async fn run_async_processor(
     brokers: String,
     group_id: String,
     schemas: HashMap<u32, Schema>,
@@ -184,75 +177,9 @@ async fn run_async_processor(
     info!("Stream processing terminated");
 }
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Debug, Subcommand)]
-enum Commands {
-    /// Injects message
-    Inject {
-        #[command(flatten)]
-        kafka: KafkaService,
-
-        /// Output topic
-        #[arg(long)]
-        output_topic: String,
-
-        /// Message count
-        #[arg(long, default_value_t = 1)]
-        count: u32,
-
-        /// Message ttl
-        #[arg(long, default_value_t = 10)]
-        ttl: u32,
-
-        /// Message id
-        #[arg(long, default_value_t=String::from("unlabelled"))]
-        msg_id: String,
-    },
-    /// Run the processing loop
-    Run {
-        #[command(flatten)]
-        kafka: KafkaService,
-
-        /// Number of workers
-        #[arg(long = "num-workers", short, default_value_t = 1)]
-        num_workers: i32,
-
-        /// Input topic
-        #[arg(long = "input-topic")]
-        input_topic: String,
-
-        /// Output topic
-        #[arg(long = "output-topic")]
-        output_topic: String,
-
-        /// Group id
-        #[arg(long)]
-        group_id: String,
-    },
-    /// Trying another leg of clap
-    Me(KafkaService),
-}
-
-#[derive(Debug, Args)]
-struct KafkaService {
-    /// Broker list in kafka format
-    #[arg(long, default_value_t = String::from("localhost:9092"))]
-    brokers: String,
-
-    /// Schema server in host:port format
-    #[arg(long, default_value_t = String::from("http://localhost:8081"))]
-    registry: String,
-}
-
 // cargo run --bin chaser -- --num-workers 1 --input-topic input --output-topic output --group-id gid2
 
-async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), String> {
+pub async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), String> {
     let testme_schema = Chaser::get_schema();
     info!("Schema is {}", testme_schema.canonical_form());
 
@@ -279,116 +206,4 @@ async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), Str
         return Ok((result.id, my_schema));
     }
     Err("Got a schema that was not Record".to_string())
-}
-
-#[tokio::main]
-async fn main() {
-    let args = Cli::parse();
-
-    // Start HERE
-
-    #[derive(Debug, AvroSchema, Clone, PartialEq, Eq)]
-    enum MyEnum {
-        Foo,
-        Bar,
-        Baz,
-    }
-
-    #[derive(Debug, AvroSchema, Clone, PartialEq)]
-    struct TestBasicStructWithDefaultValues {
-        #[avro(default = "123")]
-        a: i32,
-        #[avro(default = r#""The default value for 'b'""#)]
-        b: String,
-        #[avro(default = "true")]
-        condition: bool,
-        // no default value for 'c'
-        c: f64,
-        #[avro(default = r#"{"a": 1, "b": 2}"#)]
-        map: HashMap<String, i32>,
-
-        #[avro(default = "[1, 2, 3]")]
-        array: Vec<i32>,
-
-        #[avro(default = r#""Foo""#)]
-        myenum: MyEnum,
-
-        #[avro(default = "null")]
-        previous: Option<i64>,
-    }
-    println!("{:?}", TestBasicStructWithDefaultValues::get_schema());
-    println!(
-        "Schema is {}",
-        TestBasicStructWithDefaultValues::get_schema().canonical_form()
-    );
-    println!(
-        "Schema is {}",
-        TestBasicStructWithDefaultValues::get_schema().canonical_form()
-    );
-
-    // END here
-
-    let log_level = Env::default().default_filter_or("info");
-    env_logger::Builder::from_env(log_level).init();
-
-    let (version_n, version_s) = get_rdkafka_version();
-    info!("rd_kafka_version: 0x{version_n:08x}, {version_s}");
-
-    match args.command {
-        Commands::Inject {
-            kafka,
-            output_topic,
-            count,
-            ttl,
-            msg_id,
-        } => {
-            info!("Inject with {kafka:?} to {output_topic}");
-
-            let (schema_id, schema) = get_schema_id(&kafka.registry, &output_topic)
-                .await
-                .expect("valid schema");
-
-            produce(
-                &kafka.brokers,
-                &output_topic,
-                &schema,
-                schema_id,
-                count,
-                ttl,
-                &msg_id,
-            )
-            .await
-        }
-        Commands::Run {
-            kafka,
-            num_workers,
-            input_topic,
-            output_topic,
-            group_id,
-        } => {
-            let (schema_id, schema) = get_schema_id(&kafka.registry, &output_topic).await.unwrap();
-
-            let mut schemas = HashMap::new();
-
-            schemas.insert(schema_id, schema);
-
-            (0..num_workers)
-                .map(|_| {
-                    tokio::spawn(run_async_processor(
-                        kafka.brokers.to_owned(),
-                        group_id.to_owned(),
-                        schemas.clone(),
-                        input_topic.to_owned(),
-                        output_topic.to_owned(),
-                    ))
-                })
-                .collect::<FuturesUnordered<_>>()
-                .for_each(|_| async {})
-                .await
-        }
-        Commands::Me(service) => {
-            error!("Me called with {service:?}");
-            todo!("missing code for Me")
-        }
-    }
 }

@@ -57,7 +57,7 @@ thiserror = "^2.0"
 
 [[bin]]
 name = "kafka-chase"
-path = "src/chaser/chase.rs"
+path = "src/chaser/main.rs"
 
 [dev-dependencies]
 criterion = { version = "~0.8", features = ["html_reports"] }
