@@ -191,7 +191,6 @@ async fn main() {
         }
         Commands::Me(service) => {
             error!("Me called with {service:?}");
-            todo!("missing code for Me")
         }
     }
 }

@@ -11,7 +11,7 @@ status-ports:
 
 backend-dev: export CAPTURE_LOG=INFO
 backend-dev:
-	cd ${BE_DIR} && cargo watch  -x "run -- start --config test-data/config-localhost.yaml --secrets test-data/secrets"
+	cd ${BE_DIR} && cargo watch  -x "run -- run --config test-data/config-localhost.yaml --secrets test-data/secrets"
 
 backend-test:
 	cd ${BE_DIR} && cargo watch --ignore test_data -x "test"
