@@ -3,7 +3,7 @@ env:
   - name: CAPTURE_LOG
     value: INFO
 image:
-  repository: ghcr.io/polecatworks/kafka-chase
+  repository: ghcr.io/polecatworks/rusty-kafka
   tag: main
 secretName: db0-service-cap-user
 configs:
@@ -13,3 +13,25 @@ configs:
         url: postgres://cnpg-db0-cluster-rw.dbs.svc.cluster.local:5432/service_cap
         username_file: db/username
         password_file: db/password
+
+livenessProbe: null
+#   httpGet: null
+#   periodSeconds: null
+#   initialDelaySeconds: null
+
+readinessProbe: null
+#   httpGet: null
+#   periodSeconds: null
+
+args:
+  - run
+  - --brokers
+  - kafka.confluent.svc.cluster.local:9092
+  - --registry
+  - http://schemaregistry.confluent.svc.cluster.local:8081
+  - --input-topic
+  - input
+  - --output-topic
+  - input
+  - --group-id
+  - kafka-chase00

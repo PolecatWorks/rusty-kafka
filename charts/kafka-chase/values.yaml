@@ -89,11 +89,7 @@ affinity: {}
 configs: {} # Note: Defaults provided in helm configs dir
 
 args:
-  - start
-  - --config
-  - /opt/app/configs/serviceconfig.yaml
-  - --secrets
-  - /opt/app/secrets
+  - me
 
 secretName: null
 
