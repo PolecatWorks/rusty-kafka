@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-chase-inject
+  namespace: dev
+spec:
+  # Delete the job 60 seconds after it finishes (Succeeded or Failed)
+  ttlSecondsAfterFinished: 60
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: kafka-chase
+        app.kubernetes.io/name: kafka-chase
+        component: inject-pod
+    spec:
+      serviceAccountName: kafka-chase
+      restartPolicy: Never
+      containers:
+        - name: kafka-chase
+          image: ghcr.io/polecatworks/rusty-kafka:main
+          imagePullPolicy: Always
+          args:
+            - inject
+            - --brokers
+            - kafka.confluent.svc.cluster.local:9092
+            - --registry
+            - http://schemaregistry.confluent.svc.cluster.local:8081
+            - --output-topic
+            - input
+            - --count
+            - "1000"
+          volumeMounts:
+            - mountPath: /opt/app/configs
+              name: configs
+            - mountPath: /opt/app/secrets
+              name: secrets
+      volumes:
+        - name: configs
+          configMap:
+            name: kafka-chase
+        - name: secrets
+          projected:
+            sources:
+              - secret:
+                  name: kafka-chase
+                  optional: true
+                  items:
+                    - key: username
+                      path: db/username
+                    - key: password
+                      path: db/password
