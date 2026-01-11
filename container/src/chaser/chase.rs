@@ -180,12 +180,15 @@ pub async fn run_async_processor(
 
 // cargo run --bin chaser -- --num-workers 1 --input-topic input --output-topic output --group-id gid2
 
-pub async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), String> {
-    let testme_schema = Chaser::get_schema();
+pub async fn get_schema_id<T: AvroSchema>(
+    registry: &str,
+    topic: &str,
+) -> Result<(u32, Schema), String> {
+    let testme_schema = T::get_schema();
     info!("Schema is {}", testme_schema.canonical_form());
 
     if let Schema::Record(RecordSchema { name, .. }) = testme_schema {
-        let my_schema = Chaser::get_schema();
+        let my_schema = T::get_schema();
 
         let schema_query = SuppliedSchema {
             name: Some(name.to_string()),

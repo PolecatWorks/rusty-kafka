@@ -18,6 +18,9 @@ use chase::run_async_processor;
 mod produce;
 use produce::produce;
 
+use crate::schemas::billing::{Bill, PaymentFailed, PaymentRequest};
+use crate::schemas::chaser::Chaser;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -147,7 +150,7 @@ async fn main() {
         } => {
             info!("Inject with {kafka:?} to {output_topic}");
 
-            let (schema_id, schema) = get_schema_id(&kafka.registry, &output_topic)
+            let (schema_id, schema) = get_schema_id::<Chaser>(&kafka.registry, &output_topic)
                 .await
                 .expect("valid schema");
 
@@ -169,11 +172,31 @@ async fn main() {
             output_topic,
             group_id,
         } => {
-            let (schema_id, schema) = get_schema_id(&kafka.registry, &output_topic).await.unwrap();
+            let (schema_id, schema) = get_schema_id::<Chaser>(&kafka.registry, &output_topic)
+                .await
+                .expect("valid schema");
+
+            let (bill_schema_id, bill_schema) =
+                get_schema_id::<Bill>(&kafka.registry, &output_topic)
+                    .await
+                    .expect("valid schema");
+
+            let (pr_schema_id, pr_schema) =
+                get_schema_id::<PaymentRequest>(&kafka.registry, &output_topic)
+                    .await
+                    .expect("valid schema");
+
+            let (pf_schema_id, pf_schema) =
+                get_schema_id::<PaymentFailed>(&kafka.registry, &output_topic)
+                    .await
+                    .expect("valid schema");
 
             let mut schemas = HashMap::new();
 
             schemas.insert(schema_id, schema);
+            schemas.insert(bill_schema_id, bill_schema);
+            schemas.insert(pr_schema_id, pr_schema);
+            schemas.insert(pf_schema_id, pf_schema);
 
             (0..num_workers)
                 .map(|_| {
