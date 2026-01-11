@@ -9,8 +9,8 @@ use rdkafka::util::get_rdkafka_version;
 use std::collections::HashMap;
 
 mod chase;
-mod chase_structures;
 mod error;
+mod schemas;
 
 use chase::get_schema_id;
 use chase::run_async_processor;

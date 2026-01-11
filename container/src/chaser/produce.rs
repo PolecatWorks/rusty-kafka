@@ -8,7 +8,7 @@ use rdkafka::{
 };
 use schema_registry_converter::schema_registry_common::get_payload;
 
-use crate::chase_structures::Chaser;
+use crate::schemas::chaser::Chaser;
 use std::time::Duration;
 
 pub(crate) async fn produce(
