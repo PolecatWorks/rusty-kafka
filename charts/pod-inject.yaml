@@ -18,9 +18,11 @@ spec:
         - --output-topic
         - input
         - --count
-        - "10000"
+        - "100"
         - --ttl
-        - "1000"
+        - "10"
+        - --msg-id
+        - Ben01
       image: ghcr.io/polecatworks/rusty-kafka:main
       imagePullPolicy: Always
       name: kafka-chase

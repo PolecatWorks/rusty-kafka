@@ -21,8 +21,8 @@ use schema_registry_converter::schema_registry_common::{
     get_bytes_result, get_payload, SchemaType, SuppliedSchema,
 };
 
-use crate::chase_structures::Chaser;
 use crate::error::MyError;
+use crate::schemas::chaser::Chaser;
 
 use std::io::Cursor;
 
@@ -52,6 +52,7 @@ fn expensive_computation(msg: &OwnedMessage) -> Result<(Vec<u8>, Vec<u8>), MyErr
 
         // TODO: get schema from the schemas object not created directly
         // TODO: confirm we have a matching msg_id
+
         let mut reader = Cursor::new(payload);
         let myval = from_avro_datum(&schema, &mut reader, None)?;
 
@@ -179,12 +180,15 @@ pub async fn run_async_processor(
 
 // cargo run --bin chaser -- --num-workers 1 --input-topic input --output-topic output --group-id gid2
 
-pub async fn get_schema_id(registry: &str, topic: &str) -> Result<(u32, Schema), String> {
-    let testme_schema = Chaser::get_schema();
+pub async fn get_schema_id<T: AvroSchema>(
+    registry: &str,
+    topic: &str,
+) -> Result<(u32, Schema), String> {
+    let testme_schema = T::get_schema();
     info!("Schema is {}", testme_schema.canonical_form());
 
     if let Schema::Record(RecordSchema { name, .. }) = testme_schema {
-        let my_schema = Chaser::get_schema();
+        let my_schema = T::get_schema();
 
         let schema_query = SuppliedSchema {
             name: Some(name.to_string()),
