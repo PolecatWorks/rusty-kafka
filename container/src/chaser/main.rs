@@ -16,7 +16,7 @@ use chase::get_schema_id;
 use chase::run_async_processor;
 
 mod produce;
-use produce::produce;
+use crate::produce::{produce, produce_bill, produce_payment_failed, produce_payment_request};
 
 use crate::schemas::billing::{Bill, PaymentFailed, PaymentRequest};
 use crate::schemas::chaser::Chaser;
@@ -50,6 +50,93 @@ enum Commands {
         /// Message id
         #[arg(long, default_value_t=String::from("unlabelled"))]
         msg_id: String,
+    },
+    /// Injects a Bill message
+    InjectBill {
+        #[command(flatten)]
+        kafka: KafkaService,
+
+        /// Output topic
+        #[arg(long)]
+        output_topic: String,
+
+        /// Number of customers
+        #[arg(long, default_value_t = 1)]
+        num_customers: u32,
+
+        /// Bills per customer
+        #[arg(long, default_value_t = 1)]
+        bills_per_customer: u32,
+
+        /// Customer prefix
+        #[arg(long, default_value = "cust")]
+        customer_prefix: String,
+
+        /// Starting customer index
+        #[arg(long, default_value_t = 0)]
+        start_customer_index: u32,
+
+        /// Starting bill index
+        #[arg(long, default_value_t = 0)]
+        start_bill_index: u32,
+
+        /// Amount in cents
+        #[arg(long)]
+        amount_cents: i64,
+    },
+    /// Injects a PaymentRequest message
+    InjectPaymentRequest {
+        #[command(flatten)]
+        kafka: KafkaService,
+
+        /// Output topic
+        #[arg(long)]
+        output_topic: String,
+
+        /// Message count
+        #[arg(long, default_value_t = 1)]
+        count: u32,
+
+        /// Bill ID
+        #[arg(long)]
+        bill_id: String,
+
+        /// Customer ID
+        #[arg(long)]
+        customer_id: String,
+
+        /// Amount in cents
+        #[arg(long)]
+        amount_cents: i64,
+    },
+    /// Injects a PaymentFailed message
+    InjectPaymentFailed {
+        #[command(flatten)]
+        kafka: KafkaService,
+
+        /// Output topic
+        #[arg(long)]
+        output_topic: String,
+
+        /// Message count
+        #[arg(long, default_value_t = 1)]
+        count: u32,
+
+        /// Payment ID
+        #[arg(long)]
+        payment_id: String,
+
+        /// Bill ID
+        #[arg(long)]
+        bill_id: String,
+
+        /// Customer ID
+        #[arg(long)]
+        customer_id: String,
+
+        /// Failure reason
+        #[arg(long)]
+        reason: String,
     },
     /// Run the processing loop
     Run {
@@ -162,6 +249,92 @@ async fn main() {
                 count,
                 ttl,
                 &msg_id,
+            )
+            .await
+        }
+        Commands::InjectBill {
+            kafka,
+            output_topic,
+            num_customers,
+            bills_per_customer,
+            customer_prefix,
+            start_customer_index,
+            start_bill_index,
+            amount_cents,
+        } => {
+            info!("Inject Bill with {kafka:?} to {output_topic}");
+
+            let (schema_id, schema) = get_schema_id::<Bill>(&kafka.registry, &output_topic)
+                .await
+                .expect("valid schema");
+
+            produce_bill(
+                &kafka.brokers,
+                &output_topic,
+                &schema,
+                schema_id,
+                &customer_prefix,
+                num_customers,
+                bills_per_customer,
+                start_customer_index,
+                start_bill_index,
+                amount_cents,
+            )
+            .await
+        }
+        Commands::InjectPaymentRequest {
+            kafka,
+            output_topic,
+            count,
+            bill_id,
+            customer_id,
+            amount_cents,
+        } => {
+            info!("Inject PaymentRequest with {kafka:?} to {output_topic}");
+
+            let (schema_id, schema) =
+                get_schema_id::<PaymentRequest>(&kafka.registry, &output_topic)
+                    .await
+                    .expect("valid schema");
+
+            produce_payment_request(
+                &kafka.brokers,
+                &output_topic,
+                &schema,
+                schema_id,
+                count,
+                &bill_id,
+                &customer_id,
+                amount_cents,
+            )
+            .await
+        }
+        Commands::InjectPaymentFailed {
+            kafka,
+            output_topic,
+            count,
+            payment_id,
+            bill_id,
+            customer_id,
+            reason,
+        } => {
+            info!("Inject PaymentFailed with {kafka:?} to {output_topic}");
+
+            let (schema_id, schema) =
+                get_schema_id::<PaymentFailed>(&kafka.registry, &output_topic)
+                    .await
+                    .expect("valid schema");
+
+            produce_payment_failed(
+                &kafka.brokers,
+                &output_topic,
+                &schema,
+                schema_id,
+                count,
+                &payment_id,
+                &bill_id,
+                &customer_id,
+                &reason,
             )
             .await
         }
