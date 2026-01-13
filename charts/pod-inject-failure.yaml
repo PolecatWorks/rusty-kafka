@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka-chase-inject-failure
+  namespace: dev
+  labels:
+    app.kubernetes.io/instance: kafka-chase
+    app.kubernetes.io/name: kafka-chase
+    component: inject-failure-pod
+spec:
+  containers:
+    - args:
+        - inject-payment-failed
+        - --brokers
+        - kafka.confluent.svc.cluster.local:9092
+        - --registry
+        - http://schemaregistry.confluent.svc.cluster.local:8081
+        - --output-topic
+        - input
+        - --count
+        - "1"
+        - --payment-id
+        - pay_001
+        - --bill-id
+        - cust_00000_00001
+        - --customer-id
+        - cust_00000
+        - --reason
+        - "Insufficient funds"
+      image: ghcr.io/polecatworks/rusty-kafka:main
+      imagePullPolicy: Always
+      name: kafka-chase
+      volumeMounts:
+        - mountPath: /opt/app/configs
+          name: configs
+        - mountPath: /opt/app/secrets
+          name: secrets
+  restartPolicy: Never
+  serviceAccountName: kafka-chase
+  volumes:
+    - configMap:
+        name: kafka-chase
+      name: configs
+    - name: secrets
+      projected:
+        sources:
+          - secret:
+              items:
+                - key: username
+                  path: db/username
+                - key: password
+                  path: db/password
+              name: kafka-chase
+              optional: true
