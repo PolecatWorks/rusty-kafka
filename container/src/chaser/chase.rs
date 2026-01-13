@@ -131,6 +131,8 @@ pub async fn run_async_processor(
         .create()
         .expect("Producer creation error");
 
+    log::info!("Starting Prosumer");
+
     // Create the outer pipeline on the message stream.
     let stream_processor = consumer.stream().try_for_each(|borrowed_message| {
         let producer = producer.clone();
