@@ -178,49 +178,6 @@ struct KafkaService {
 async fn main() {
     let args = Cli::parse();
 
-    // Start HERE
-
-    #[derive(Debug, AvroSchema, Clone, PartialEq, Eq)]
-    enum MyEnum {
-        Foo,
-        Bar,
-        Baz,
-    }
-
-    #[derive(Debug, AvroSchema, Clone, PartialEq)]
-    struct TestBasicStructWithDefaultValues {
-        #[avro(default = "123")]
-        a: i32,
-        #[avro(default = r#""The default value for 'b'""#)]
-        b: String,
-        #[avro(default = "true")]
-        condition: bool,
-        // no default value for 'c'
-        c: f64,
-        #[avro(default = r#"{"a": 1, "b": 2}"#)]
-        map: HashMap<String, i32>,
-
-        #[avro(default = "[1, 2, 3]")]
-        array: Vec<i32>,
-
-        #[avro(default = r#""Foo""#)]
-        myenum: MyEnum,
-
-        #[avro(default = "null")]
-        previous: Option<i64>,
-    }
-    println!("{:?}", TestBasicStructWithDefaultValues::get_schema());
-    println!(
-        "Schema is {}",
-        TestBasicStructWithDefaultValues::get_schema().canonical_form()
-    );
-    println!(
-        "Schema is {}",
-        TestBasicStructWithDefaultValues::get_schema().canonical_form()
-    );
-
-    // END here
-
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
 
@@ -370,6 +327,8 @@ async fn main() {
             schemas.insert(bill_schema_id, bill_schema);
             schemas.insert(pr_schema_id, pr_schema);
             schemas.insert(pf_schema_id, pf_schema);
+
+            log::info!("Schemas are {:?}", schemas);
 
             (0..num_workers)
                 .map(|_| {

@@ -45,3 +45,20 @@ Create Chaser command to run
 cargo run --bin chaser -- run --input-topic input --output-topic input --group-id gid0
 Then inject data into the topic
 cargo run --bin chaser inject --output-topic input --count 100 --ttl 100
+
+# Billing Messages
+
+Inject a batch of Bill messages:
+```bash
+chaser inject-bill --output-topic input --num-customers 10 --bills-per-customer 5 --amount-cents 10000
+```
+
+Inject a PaymentRequest for a specific bill:
+```bash
+chaser inject-payment-request --output-topic input --bill-id cust_0_00000 --customer-id cust_0 --amount-cents 10000
+```
+
+Inject a PaymentFailed message:
+```bash
+chaser inject-payment-failed --output-topic input --payment-id pay_123 --bill-id cust_0_00000 --customer-id cust_0 --reason "Insufficient funds"
+```
