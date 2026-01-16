@@ -2,7 +2,6 @@ use std::collections::HashMap;
 // Read a kafka message. Deserialise it then update and write it.
 use std::time::Duration;
 
-use apache_avro::schema::RecordSchema;
 use apache_avro::{from_avro_datum, from_value, to_avro_datum, to_value, AvroSchema, Schema};
 use chrono::Utc;
 use log::{error, info, warn};
@@ -15,18 +14,13 @@ use rdkafka::consumer::Consumer;
 use rdkafka::message::{BorrowedMessage, OwnedMessage};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::Message;
-use schema_registry_converter::async_impl::schema_registry::{post_schema, SrSettings};
 use schema_registry_converter::schema_registry_common::BytesResult::Valid;
-use schema_registry_converter::schema_registry_common::{
-    get_bytes_result, get_payload, SchemaType, SuppliedSchema,
-};
+use schema_registry_converter::schema_registry_common::{get_bytes_result, get_payload};
 
 use crate::error::MyError;
 use crate::schemas::chaser::Chaser;
 
 use std::io::Cursor;
-
-// use produce::produce;
 
 async fn record_borrowed_message_receipt(msg: &BorrowedMessage<'_>) {
     // Simulate some work that must be done in the same order as messages are
@@ -181,35 +175,3 @@ pub async fn run_async_processor(
 }
 
 // cargo run --bin chaser -- --num-workers 1 --input-topic input --output-topic output --group-id gid2
-
-pub async fn get_schema_id<T: AvroSchema>(
-    registry: &str,
-    topic: &str,
-) -> Result<(u32, Schema), String> {
-    let testme_schema = T::get_schema();
-    info!("Schema is {}", testme_schema.canonical_form());
-
-    if let Schema::Record(RecordSchema { name, .. }) = testme_schema {
-        let my_schema = T::get_schema();
-
-        let schema_query = SuppliedSchema {
-            name: Some(name.to_string()),
-            schema_type: SchemaType::Avro,
-            schema: serde_json::to_string(&my_schema).unwrap(),
-            references: vec![],
-            properties: None,
-            tags: None,
-        };
-
-        let sr_settings = SrSettings::new(registry.to_owned());
-
-        let result = post_schema(&sr_settings, format!("{topic}-{name}"), schema_query)
-            .await
-            .expect("Reply from registry");
-
-        info!("Registry replied: {result:?}");
-
-        return Ok((result.id, my_schema));
-    }
-    Err("Got a schema that was not Record".to_string())
-}

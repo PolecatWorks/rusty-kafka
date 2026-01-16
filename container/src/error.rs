@@ -1,3 +1,4 @@
+use std::io;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -12,6 +13,11 @@ pub enum MyError {
     Unknown,
     #[error("Avro error: `{0}`")]
     AvroError(#[from] apache_avro::Error),
+
+    #[error("data store disconnected")]
+    Io(#[from] io::Error),
+    #[error("Env filter error: `{0}`")]
+    EnvFilterError(#[from] tracing_subscriber::filter::FromEnvError),
 }
 
 impl From<()> for MyError {
