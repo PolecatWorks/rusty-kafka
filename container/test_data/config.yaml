@@ -1,0 +1,22 @@
+---
+hams:
+  address: 127.0.0.1:8079
+  prefix: hams
+  logging: true
+  checks:
+    timeout: 5
+    fails: 2
+    preflights: []
+    # - http://localhost:4201
+    shutdowns: []
+runtime:
+  stack_size: 3145728
+  threads: 4
+  name: kafka-chase
+kafka:
+  brokers: localhost:9092
+  registry: localhost:8081
+  num_workers: 4
+  input_topic: input
+  output_topic: output
+  group_id: test-group
