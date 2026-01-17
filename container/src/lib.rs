@@ -5,9 +5,13 @@ pub mod metrics;
 pub mod produce;
 pub mod schemas;
 pub mod tokio_tools;
+use apache_avro::Schema;
 use futures::StreamExt;
-use std::collections::HashMap;
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use std::ffi::c_void;
+use std::{collections::HashMap, sync::Arc};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use futures::stream::FuturesUnordered;
 use hamsrs::Hams;
@@ -31,18 +35,46 @@ pub const NAME: &str = env!("CARGO_PKG_NAME");
 /// Version of the Crate
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+use opentelemetry_prometheus_text_exporter::PrometheusExporter;
+
+struct TelemetryState {
+    exporter: PrometheusExporter,
+    meter_provider: SdkMeterProvider,
+    // registry: Registry,
+}
+
 pub struct MyState {
     config: MyConfig,
-    registry: Registry,
+    schemas: HashMap<u32, Schema>,
+    telemetry: Arc<TelemetryState>,
 }
 
 impl MyState {
-    pub fn new(config: &MyConfig) -> Result<MyState, MyError> {
-        let registry = Registry::new();
+    pub fn new(config: &MyConfig, schemas: HashMap<u32, Schema>) -> Result<MyState, MyError> {
+        // let registry = Registry::new();
+        let exporter = PrometheusExporter::new();
+        // 2. Build the MeterProvider with the exporter as a reader
+        let meter_provider = SdkMeterProvider::builder()
+            .with_reader(exporter.clone())
+            .build();
+        let otel_layer = tracing_opentelemetry::MetricsLayer::new(meter_provider.clone());
+
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::EnvFilter::from_default_env())
+            .with(otel_layer)
+            .try_init()
+            .expect("failed to init tracing");
+
+        let telemetry = Arc::new(TelemetryState {
+            exporter,
+            meter_provider,
+            // registry,
+        });
 
         Ok(MyState {
             config: config.clone(),
-            registry: registry,
+            schemas,
+            telemetry,
         })
     }
 }
@@ -54,17 +86,6 @@ pub fn chaser_start(config: &MyConfig) -> Result<(), MyError> {
 
     run_in_tokio_with_cancel(&config.runtime, ct.clone(), async {
         println!("chaser_start");
-        let state = MyState::new(config)?;
-
-        let hams = Hams::new(ct.clone(), &config.hams).unwrap();
-
-        hams.register_prometheus(
-            // prometheus_response,
-            prometheus_response_mystate,
-            prometheus_response_free,
-            &state as *const _ as *const c_void,
-        )?;
-        hams.start().unwrap();
 
         let registry_url = config.kafka.registry.as_str().trim_end_matches('/');
 
@@ -94,16 +115,29 @@ pub fn chaser_start(config: &MyConfig) -> Result<(), MyError> {
         schemas.insert(pr_schema_id, pr_schema);
         schemas.insert(pf_schema_id, pf_schema);
 
-        log::info!("Schemas are {:?}", schemas);
+        log::info!("Schemas are {schemas:?}");
+
+        let state = MyState::new(config, schemas)?;
+
+        let hams = Hams::new(ct.clone(), &config.hams).unwrap();
+
+        hams.register_prometheus(
+            // prometheus_response,
+            prometheus_response_mystate,
+            prometheus_response_free,
+            &state as *const _ as *const c_void,
+        )?;
+
+        hams.start().unwrap();
 
         (0..config.kafka.num_workers)
             .map(|_| {
                 tokio::spawn(run_async_processor(
-                    config.kafka.brokers.to_owned(),
-                    config.kafka.group_id.to_owned(),
-                    schemas.clone(),
-                    config.kafka.input_topic.to_owned(),
-                    config.kafka.output_topic.to_owned(),
+                    state, // config.kafka.brokers.to_owned(),
+                          // config.kafka.group_id.to_owned(),
+                          // schemas.clone(),
+                          // config.kafka.input_topic.to_owned(),
+                          // config.kafka.output_topic.to_owned(),
                 ))
             })
             .collect::<FuturesUnordered<_>>()
