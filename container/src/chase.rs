@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::sync::Arc;
 // Read a kafka message. Deserialise it then update and write it.
 use std::time::Duration;
 
-use apache_avro::{from_avro_datum, from_value, to_avro_datum, to_value, AvroSchema, Schema};
+use apache_avro::{from_avro_datum, from_value, to_avro_datum, to_value};
 use chrono::Utc;
 use log::{error, info, warn};
 
@@ -37,22 +37,39 @@ async fn record_owned_message_receipt(_msg: &OwnedMessage) {
 }
 
 // Emulates an expensive, synchronous computation.
-fn expensive_computation(msg: &OwnedMessage) -> Result<(Vec<u8>, Vec<u8>), MyError> {
+fn expensive_computation(
+    state: &MyState,
+    msg: &OwnedMessage,
+    received_counter: &opentelemetry::metrics::Counter<u64>,
+    ttl_histogram: &opentelemetry::metrics::Histogram<u64>,
+) -> Result<(Vec<u8>, Vec<u8>), MyError> {
     info!("Starting expensive computation on message {}", msg.offset());
 
     let payload = msg.payload_view::<[u8]>().and_then(|res| res.ok());
 
     let bytes_result = get_bytes_result(payload);
     if let Valid(msg_id, payload) = bytes_result {
-        let schema = Chaser::get_schema();
-
-        // TODO: get schema from the schemas object not created directly
-        // TODO: confirm we have a matching msg_id
-
         let mut reader = Cursor::new(payload);
-        let myval = from_avro_datum(&schema, &mut reader, None)?;
+        let schema = state
+            .schemas
+            .get(&msg_id)
+            .ok_or(MyError::Message("Schema not found"))?;
+        let myval = from_avro_datum(schema, &mut reader, None)?;
 
         let mut chaser = from_value::<Chaser>(&myval)?;
+
+        let key_str = msg
+            .key_view::<str>()
+            .and_then(|k| k.ok())
+            .unwrap_or("unknown");
+
+        let attributes = [
+            opentelemetry::KeyValue::new("chaser_name", chaser.name.clone()),
+            opentelemetry::KeyValue::new("chaser_key", key_str.to_string()),
+        ];
+
+        received_counter.add(1, &attributes);
+        ttl_histogram.record(chaser.ttl as u64, &attributes);
 
         // Update chaser with content for next message
         chaser.ttl -= 1;
@@ -75,7 +92,7 @@ fn expensive_computation(msg: &OwnedMessage) -> Result<(Vec<u8>, Vec<u8>), MyErr
 
         // Serialize the chaser object again
         let avro_value = to_value(chaser)?;
-        let avro_bytes = to_avro_datum(&schema, avro_value)?;
+        let avro_bytes = to_avro_datum(schema, avro_value)?;
         let avro_payload = get_payload(msg_id, avro_bytes);
 
         Ok((
@@ -98,7 +115,7 @@ fn expensive_computation(msg: &OwnedMessage) -> Result<(Vec<u8>, Vec<u8>), MyErr
 // the messages), while `tokio::task::spawn_blocking` is used to handle the
 // simulated CPU-bound task.
 pub async fn run_async_processor(
-    state: &MyState,
+    state: std::sync::Arc<MyState>,
     // brokers: String,
     // group_id: String,
     // schemas: HashMap<u32, Schema>,
@@ -132,12 +149,17 @@ pub async fn run_async_processor(
 
     let meter = state.telemetry.meter_provider.meter("kafka-chase");
     let counter = meter.u64_counter("messages_processed").build();
+    let chaser_received = meter.u64_counter("chaser.received.total").build();
+    let chaser_ttl = meter.u64_histogram("chaser.ttl").build();
 
-    let msg_size = meter.u64_observable_gauge("message_size").build();
+    let _msg_size = meter.u64_observable_gauge("message_size").build();
 
     // Create the outer pipeline on the message stream.
     let stream_processor = consumer.stream().try_for_each(|borrowed_message| {
         let producer = producer.clone();
+        let state = Arc::clone(&state);
+        let chaser_received = chaser_received.clone();
+        let chaser_ttl = chaser_ttl.clone();
         let output_topic = state.config.kafka.output_topic.to_string();
         counter.add(1, &[]);
 
@@ -153,10 +175,19 @@ pub async fn run_async_processor(
                 // but we perform `expensive_computation` on a separate thread pool
                 // for CPU-intensive tasks via `tokio::task::spawn_blocking`.
                 // let my_key = owned_message.key().expect("keyed").clone();
-                let computation_result =
-                    tokio::task::spawn_blocking(move || expensive_computation(&owned_message))
-                        .await
-                        .expect("failed to wait for expensive computation");
+                let state_for_comp = Arc::clone(&state);
+                let counter_for_comp = chaser_received.clone();
+                let ttl_for_comp = chaser_ttl.clone();
+                let computation_result = tokio::task::spawn_blocking(move || {
+                    expensive_computation(
+                        &state_for_comp,
+                        &owned_message,
+                        &counter_for_comp,
+                        &ttl_for_comp,
+                    )
+                })
+                .await
+                .expect("failed to wait for expensive computation");
 
                 match computation_result {
                     Ok((msg_key, msg_payload)) => {
