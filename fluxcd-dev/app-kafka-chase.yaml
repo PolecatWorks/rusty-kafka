@@ -28,7 +28,9 @@ spec:
       repository: ghcr.io/polecatworks/rusty-kafka
       tag: main
       pullPolicy: Always # Dev ONLY
-    configs: {}
+    configs:
+      kafka:
+        output_topic: input
     livenessProbe: null
     #   httpGet: null
     #   periodSeconds: null
