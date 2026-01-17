@@ -29,12 +29,14 @@ pub extern "C" fn prometheus_response(ptr: *const c_void) -> *const c_char {
 pub extern "C" fn prometheus_response_mystate(ptr: *const c_void) -> *const c_char {
     let state = unsafe { &*(ptr as *const MyState) };
 
-    let encoder = prometheus::TextEncoder::new();
+    // let encoder = prometheus::TextEncoder::new();
     let mut buffer = Vec::new();
 
-    let metric_families = state.registry.gather();
+    state.telemetry.exporter.export(&mut buffer).unwrap();
+    // let metrics = state.telemetry.registry.gather();
+    // let metric_families = state.registry.gather();
 
-    encoder.encode(&metric_families, &mut buffer).unwrap();
+    // encoder.encode(&metric_families, &mut buffer).unwrap();
 
     let prometheus = String::from_utf8(buffer).unwrap();
 
