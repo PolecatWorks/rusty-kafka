@@ -62,3 +62,12 @@ Inject a PaymentFailed message:
 ```bash
 chaser inject-payment-failed --output-topic input --payment-id pay_123 --bill-id cust_0_00000 --customer-id cust_0 --reason "Insufficient funds"
 ```
+
+
+# Injections
+
+cargo watch -x "run inject --output-topic input --count 100 --ttl 100"
+
+# Run Chaser
+
+cargo watch -x "run run --config test_data/config.yaml --secrets secrets"

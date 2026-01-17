@@ -15,7 +15,7 @@ runtime:
   name: kafka-chase
 kafka:
   brokers: localhost:9092
-  registry: localhost:8081
+  registry: http://localhost:8081
   num_workers: 4
   input_topic: input
   output_topic: output

@@ -9,10 +9,10 @@ use std::path::Path;
 
 use crate::tokio_tools::ThreadRuntime;
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct KafkaConfig {
     pub brokers: String,
-    pub registry: String,
+    pub registry: url::Url,
     pub num_workers: i32,
     pub input_topic: String,
     pub output_topic: String,
@@ -37,18 +37,6 @@ pub struct MyConfig {
     pub hams: HamsConfig,
     pub runtime: ThreadRuntime,
     pub kafka: KafkaConfig,
-}
-
-impl Default for MyConfig {
-    fn default() -> Self {
-        Self {
-            name: default_name(),
-            version: default_version(),
-            hams: HamsConfig::default(),
-            runtime: ThreadRuntime::default(),
-            kafka: KafkaConfig::default(),
-        }
-    }
 }
 
 impl MyConfig {

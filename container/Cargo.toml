@@ -23,6 +23,7 @@ tokio = { version = "^1.49", features = ["full"] }
 tokio-util = "0.7"
 tracing = "0.1.44"
 tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", features = ["json"] }
 
 thiserror = "^2.0"
 
@@ -35,6 +36,7 @@ rand = "~0.9"
 futures = "~0.3"
 uuid = { version = "1.19.0", features = ["v4"] }
 prometheus = "0.14.0"
+url = { version = "2.5", features = ["serde"] }
 
 hamsrs = { git = "https://github.com/PolecatWorks/hams.git" }
 ffi-log2 = { git = "https://github.com/PolecatWorks/hams.git" }

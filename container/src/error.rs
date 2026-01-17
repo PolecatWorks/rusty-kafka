@@ -1,3 +1,4 @@
+use hamsrs::hamserror::HamsError;
 use std::io;
 use thiserror::Error;
 
@@ -13,6 +14,9 @@ pub enum MyError {
     Unknown,
     #[error("Avro error: `{0}`")]
     AvroError(#[from] apache_avro::Error),
+
+    #[error("HaMs error `{0}`")]
+    HamsError(#[from] HamsError),
 
     #[error("data store disconnected")]
     Io(#[from] io::Error),
