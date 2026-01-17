@@ -7,9 +7,11 @@ pub mod schemas;
 pub mod tokio_tools;
 use futures::StreamExt;
 use std::collections::HashMap;
+use std::ffi::c_void;
 
 use futures::stream::FuturesUnordered;
 use hamsrs::Hams;
+use metrics::{prometheus_response_free, prometheus_response_mystate};
 use prometheus::Registry;
 use tokio_util::sync::CancellationToken;
 
@@ -30,7 +32,19 @@ pub const NAME: &str = env!("CARGO_PKG_NAME");
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct MyState {
+    config: MyConfig,
     registry: Registry,
+}
+
+impl MyState {
+    pub fn new(config: &MyConfig) -> Result<MyState, MyError> {
+        let registry = Registry::new();
+
+        Ok(MyState {
+            config: config.clone(),
+            registry: registry,
+        })
+    }
 }
 
 use crate::schemas::get_schema_id;
@@ -40,28 +54,38 @@ pub fn chaser_start(config: &MyConfig) -> Result<(), MyError> {
 
     run_in_tokio_with_cancel(&config.runtime, ct.clone(), async {
         println!("chaser_start");
+        let state = MyState::new(config)?;
 
-        let _hams = Hams::new(ct.clone(), &config.hams).unwrap();
+        let hams = Hams::new(ct.clone(), &config.hams).unwrap();
 
-        let (schema_id, schema) =
-            get_schema_id::<Chaser>(&config.kafka.registry, &config.kafka.input_topic)
-                .await
-                .expect("valid schema");
+        hams.register_prometheus(
+            // prometheus_response,
+            prometheus_response_mystate,
+            prometheus_response_free,
+            &state as *const _ as *const c_void,
+        )?;
+        hams.start().unwrap();
+
+        let registry_url = config.kafka.registry.as_str().trim_end_matches('/');
+
+        let (schema_id, schema) = get_schema_id::<Chaser>(registry_url, &config.kafka.input_topic)
+            .await
+            .expect("valid schema for Chaser");
 
         let (bill_schema_id, bill_schema) =
-            get_schema_id::<Bill>(&config.kafka.registry, &config.kafka.input_topic)
+            get_schema_id::<Bill>(registry_url, &config.kafka.input_topic)
                 .await
-                .expect("valid schema");
+                .expect("valid schema for Bill");
 
         let (pr_schema_id, pr_schema) =
-            get_schema_id::<PaymentRequest>(&config.kafka.registry, &config.kafka.input_topic)
+            get_schema_id::<PaymentRequest>(registry_url, &config.kafka.input_topic)
                 .await
-                .expect("valid schema");
+                .expect("valid schema for PaymentRequest    ");
 
         let (pf_schema_id, pf_schema) =
-            get_schema_id::<PaymentFailed>(&config.kafka.registry, &config.kafka.input_topic)
+            get_schema_id::<PaymentFailed>(registry_url, &config.kafka.input_topic)
                 .await
-                .expect("valid schema");
+                .expect("valid schema for PaymentFailed");
 
         let mut schemas = HashMap::new();
 
@@ -85,6 +109,9 @@ pub fn chaser_start(config: &MyConfig) -> Result<(), MyError> {
             .collect::<FuturesUnordered<_>>()
             .for_each(|_| async {})
             .await;
+
+        hams.stop()?;
+        hams.deregister_prometheus()?;
 
         Ok(())
     })

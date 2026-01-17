@@ -157,8 +157,8 @@ struct KafkaConfig {
     brokers: String,
 
     /// Schema server in host:port format
-    #[arg(long, default_value_t = String::from("http://localhost:8081"))]
-    registry: String,
+    #[arg(long, default_value_t = url::Url::parse("http://localhost:8081").unwrap())]
+    registry: url::Url,
 }
 
 fn main() -> Result<ExitCode, MyError> {
@@ -190,9 +190,12 @@ fn main() -> Result<ExitCode, MyError> {
             println!("Inject with {kafka:?} to {output_topic} x {count}");
 
             run_in_tokio(&min_runtime_config, async {
-                let (schema_id, schema) = get_schema_id::<Chaser>(&kafka.registry, &output_topic)
-                    .await
-                    .expect("valid schema");
+                let (schema_id, schema) = get_schema_id::<Chaser>(
+                    kafka.registry.as_str().trim_end_matches('/'),
+                    &output_topic,
+                )
+                .await
+                .expect("valid schema");
 
                 produce(
                     &kafka.brokers,
@@ -221,9 +224,12 @@ fn main() -> Result<ExitCode, MyError> {
         } => {
             info!("Inject Bill with {kafka:?} to {output_topic}");
             run_in_tokio(&min_runtime_config, async {
-                let (schema_id, schema) = get_schema_id::<Bill>(&kafka.registry, &output_topic)
-                    .await
-                    .expect("valid schema");
+                let (schema_id, schema) = get_schema_id::<Bill>(
+                    kafka.registry.as_str().trim_end_matches('/'),
+                    &output_topic,
+                )
+                .await
+                .expect("valid schema");
 
                 produce_bill(
                     &kafka.brokers,
@@ -253,10 +259,12 @@ fn main() -> Result<ExitCode, MyError> {
             info!("Inject PaymentRequest with {kafka:?} to {output_topic}");
 
             run_in_tokio(&min_runtime_config, async {
-                let (schema_id, schema) =
-                    get_schema_id::<PaymentRequest>(&kafka.registry, &output_topic)
-                        .await
-                        .expect("valid schema");
+                let (schema_id, schema) = get_schema_id::<PaymentRequest>(
+                    kafka.registry.as_str().trim_end_matches('/'),
+                    &output_topic,
+                )
+                .await
+                .expect("valid schema");
 
                 produce_payment_request(
                     &kafka.brokers,
@@ -284,10 +292,12 @@ fn main() -> Result<ExitCode, MyError> {
             info!("Inject PaymentFailed with {kafka:?} to {output_topic}");
 
             run_in_tokio(&min_runtime_config, async {
-                let (schema_id, schema) =
-                    get_schema_id::<PaymentFailed>(&kafka.registry, &output_topic)
-                        .await
-                        .expect("valid schema");
+                let (schema_id, schema) = get_schema_id::<PaymentFailed>(
+                    kafka.registry.as_str().trim_end_matches('/'),
+                    &output_topic,
+                )
+                .await
+                .expect("valid schema");
 
                 produce_payment_failed(
                     &kafka.brokers,
