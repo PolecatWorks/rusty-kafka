@@ -38,17 +38,10 @@ spec:
     #   periodSeconds: null
     args:
       - run
-      - --brokers
-      - kafka.confluent.svc.cluster.local:9092
-      - --registry
-      - http://schemaregistry.confluent.svc.cluster.local:8081
-      - --input-topic
-      - input
-      - --output-topic
-      - input
-      - --group-id
-      - kafka-chase00
-
+      - --config
+      - /opt/app/configs/config.yaml
+      - --secrets
+      - /opt/app/secrets
     devsecops:
       RequestAuthentication:
         jwtRules: []

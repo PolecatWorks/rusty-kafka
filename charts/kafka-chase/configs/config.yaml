@@ -12,17 +12,11 @@ hams:
 runtime:
   stack_size: 3145728
   threads: 4
-  name: service-capture
-webservice:
-  prefix: /capture
-  address: 0.0.0.0:8080
-  forwarding_headers: []
-persistence:
-  db:
-    pool_size: 20
-    automigrate: true
-    acquire_timeout: 3
-    connection:
-      url: postgres://localhost:5432/service-capture
-      username_file: db/username
-      password_file: db/password
+  name: kafka-chase
+kafka:
+  brokers: kafka.confluent.svc.cluster.local:9092
+  registry: http://schemaregistry.confluent.svc.cluster.local:8081
+  num_workers: 4
+  input_topic: input
+  output_topic: output
+  group_id: chaser
