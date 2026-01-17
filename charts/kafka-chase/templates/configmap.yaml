@@ -6,5 +6,5 @@ metadata:
   labels:
     {{- include "kafka-chase.labels" . | nindent 4 }}
 data:
-  serviceconfig.yaml: |
+  config.yaml: |
     {{- include "kafka-chase.config" . | nindent 4 }}
