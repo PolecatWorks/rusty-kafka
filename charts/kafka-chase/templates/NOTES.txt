@@ -1,3 +1,6 @@
 You installed kafka-chase
 
 check the values.yaml for configuration options
+
+shas:
+{{- include "kafka-chase.shas" .  | nindent 2 }}

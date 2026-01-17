@@ -78,6 +78,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 
+{{- define "kafka-chase.shas" -}}
+checksum/config: {{ tpl (include "kafka-chase.config" .) . | sha256sum }}
+checksum/volumes: {{ tpl (include "kafka-chase.volumes" .) . | sha256sum }}
+{{- end -}}
 
 
 {{/*
