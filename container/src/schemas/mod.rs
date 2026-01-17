@@ -39,7 +39,7 @@ pub async fn get_schema_id<T: AvroSchema>(
                 return Ok((r.id, my_schema));
             }
             Err(e) => {
-                let err_msg = format!("Failed to register schema for subject {}: {:?}", subject, e);
+                let err_msg = format!("Failed to register schema for subject {subject}: {e:?}");
                 error!("{}", err_msg);
                 return Err(err_msg);
             }

@@ -16,7 +16,6 @@ use tracing_subscriber::util::SubscriberInitExt;
 use futures::stream::FuturesUnordered;
 use hamsrs::Hams;
 use metrics::{prometheus_response_free, prometheus_response_mystate};
-use prometheus::Registry;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -117,7 +116,7 @@ pub fn chaser_start(config: &MyConfig) -> Result<(), MyError> {
 
         log::info!("Schemas are {schemas:?}");
 
-        let state = MyState::new(config, schemas)?;
+        let state = Arc::new(MyState::new(config, schemas)?);
 
         let hams = Hams::new(ct.clone(), &config.hams).unwrap();
 
@@ -125,13 +124,14 @@ pub fn chaser_start(config: &MyConfig) -> Result<(), MyError> {
             // prometheus_response,
             prometheus_response_mystate,
             prometheus_response_free,
-            &state as *const _ as *const c_void,
+            Arc::as_ptr(&state) as *const c_void,
         )?;
 
         hams.start().unwrap();
 
         (0..config.kafka.num_workers)
             .map(|_| {
+                let state = Arc::clone(&state);
                 tokio::spawn(run_async_processor(
                     state, // config.kafka.brokers.to_owned(),
                           // config.kafka.group_id.to_owned(),

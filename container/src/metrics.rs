@@ -6,6 +6,7 @@ use tracing::info;
 use crate::MyState;
 
 #[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn prometheus_response(ptr: *const c_void) -> *const c_char {
     info!("Gathering Prometheus metrics in bill");
 
@@ -26,6 +27,7 @@ pub extern "C" fn prometheus_response(ptr: *const c_void) -> *const c_char {
 }
 
 #[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn prometheus_response_mystate(ptr: *const c_void) -> *const c_char {
     let state = unsafe { &*(ptr as *const MyState) };
 
@@ -46,6 +48,7 @@ pub extern "C" fn prometheus_response_mystate(ptr: *const c_void) -> *const c_ch
 }
 
 #[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn prometheus_response_free(ptr: *mut c_char) {
     if ptr.is_null() {
         return;
