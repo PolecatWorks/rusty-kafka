@@ -58,11 +58,10 @@ impl MyState {
             .build();
         let otel_layer = tracing_opentelemetry::MetricsLayer::new(meter_provider.clone());
 
-        tracing_subscriber::registry()
+        let _ = tracing_subscriber::registry()
             .with(tracing_subscriber::EnvFilter::from_default_env())
             .with(otel_layer)
-            .try_init()
-            .expect("failed to init tracing");
+            .try_init();
 
         let telemetry = Arc::new(TelemetryState {
             exporter,
